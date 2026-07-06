@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout - Mecha Toys</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .checkout-container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 28px;
+            padding: 48px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+        }
+        
+        .checkout-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .checkout-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        
+        .checkout-header p {
+            color: #636e72;
+        }
+        
+        .product-summary {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .product-summary .name {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        
+        .product-summary .price {
+            font-weight: 700;
+            color: #e17055;
+            font-size: 1.2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #6c5ce7;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 25px rgba(108, 92, 231, 0.35);
+            margin-top: 12px;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 40px rgba(108, 92, 231, 0.4);
+        }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #636e72;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            color: #6c5ce7;
+        }
+        
+        .trust-badges {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 24px;
+            font-size: 0.85rem;
+            color: #636e72;
+        }
+        
+        @media (max-width: 600px) {
+            .checkout-container {
+                padding: 24px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .checkout-header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="checkout-container">
+        <div class="checkout-header">
+            <h1>🛒 Complete Your Order</h1>
+            <p>Enter your details to place your order</p>
+        </div>
+
+        <!-- Product Summary -->
+        <div class="product-summary">
+            <span class="name">{{ product.name }}</span>
+            <span class="price">€{{ product.price }}</span>
+        </div>
+
+        <!-- Order Form -->
+        <form action="/place-order" method="POST">
+            <input type="hidden" name="product_id" value="{{ product.id }}" />
+
+            <div class="form-group">
+                <label for="name">Full Name *</label>
+                <input type="text" id="name" name="name" required placeholder="John Doe" />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required placeholder="john@example.com" />
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+1234567890" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="address">Shipping Address *</label>
+                <textarea id="address" name="address" required placeholder="Street, City, Postal Code, Country"></textarea>
+            </div>
+
+            <div style="font-size:0.85rem;color:#636e72;margin-bottom:16px;">
+                <p>🔒 By placing your order, you'll receive a confirmation email.</p>
+                <p>💰 Payment is processed manually - we'll send payment instructions.</p>
+            </div>
+
+            <button type="submit" class="submit-btn">
+                🚀 Place Order - €{{ product.price }}
+            </button>
+        </form>
+
+        <a href="/" class="back-link">← Back to Store</a>
+
+        <div class="trust-badges">
+            <span>🔒 Secure Connection</span>
+            <span>📧 Email Confirmation</span>
+            <span>💯 15-Day Guarantee</span>
+        </div>
+    </div>
+</body>
+</html>

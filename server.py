@@ -404,24 +404,7 @@ def paypal_redirect(product_id):
 # ===== APPLE PAY ROUTES =====
 # ============================================================
 
-
-
-
-@app.route('/test-google-pay/<product_id>')
-def test_google_pay(product_id):
-    """Test page for Google Pay"""
-    product = PRODUCTS.get(product_id)
-    if not product:
-        return "Product not found", 404
-    return render_template('google_pay_test.html', 
-                         product=product,
-                         client_id=PAYPAL_CLIENT_ID)
 @app.route('/create-apple-pay-order', methods=['POST'])
-
-
-
-
-
 def create_apple_pay_order():
     try:
         data = request.json
@@ -556,8 +539,6 @@ def capture_apple_pay_order():
 def create_google_pay_order():
     try:
         data = request.json
-        print(f"📥 Google Pay create order request: {data}")
-        
         product_id = data.get('product_id')
         customer_name = data.get('customer_name')
         customer_email = data.get('customer_email')
@@ -582,36 +563,30 @@ def create_google_pay_order():
         order = create_paypal_order_rest(product['price'], product['name'])
         
         if order and 'id' in order:
-            print(f"✅ Google Pay order created: {order['id']}")
             return jsonify({
                 'order_id': order['id'],
                 'status': 'created'
             })
         else:
-            print(f"❌ Google Pay order creation failed: {order}")
             return jsonify({'error': 'Failed to create order'}), 400
             
     except Exception as e:
-        print(f"❌ Exception creating Google Pay order: {e}")
+        print(f"Error creating Google Pay order: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/capture-google-pay-order', methods=['POST'])
 def capture_google_pay_order():
     try:
         data = request.json
-        print(f"📥 Google Pay capture request: {data}")
-        
         order_id = data.get('order_id')
         
         if not order_id:
             return jsonify({'error': 'Order ID required'}), 400
         
         capture_result = capture_paypal_order_rest(order_id)
-        print(f"🔍 Capture result: {capture_result}")
         
         if capture_result and 'status' in capture_result and capture_result['status'] == 'COMPLETED':
             transaction_id = capture_result['purchase_units'][0]['payments']['captures'][0]['id']
-            print(f"✅ Payment captured: {transaction_id}")
             
             customer_data = session.get('customer_data', {})
             product_id = customer_data.get('product_id')
@@ -656,8 +631,6 @@ def capture_google_pay_order():
                     order_id_internal,
                     transaction_id
                 )
-                
-                print(f"✅ Order saved: {order_id_internal}")
             
             session.pop('customer_data', None)
             
@@ -666,11 +639,10 @@ def capture_google_pay_order():
                 'transaction_id': transaction_id
             })
         else:
-            print(f"❌ Capture failed: {capture_result}")
             return jsonify({'error': 'Failed to capture payment'}), 400
             
     except Exception as e:
-        print(f"❌ Exception capturing Google Pay order: {e}")
+        print(f"Error capturing Google Pay order: {e}")
         return jsonify({'error': str(e)}), 500
 
 # ============================================================

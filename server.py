@@ -7,6 +7,7 @@ from datetime import datetime
 import secrets
 import os
 import uuid
+import paypalrestsdk
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -24,8 +25,17 @@ PAYPAL_EMAIL = "mecchachameleonstore@gmail.com"
 PAYPAL_SANDBOX = False
 PAYPAL_URL = "https://www.paypal.com/cgi-bin/webscr"
 
-# ===== PAYPAL API CLIENT ID (for Apple Pay & Google Pay) =====
+# ===== PAYPAL API CONFIGURATION (for Apple Pay & Google Pay) =====
 PAYPAL_CLIENT_ID = "ARlmoa47tt-GIkbslRohxq74lrNmv7kdpo6TTk4WYzS4DkZ5VqAk1CjVDzoaCHOHeFYcy_UQdWw2OqKj"
+PAYPAL_CLIENT_SECRET = "EDQ2PE-NJO4IQoivFo9_EiAiKm-LH9B5CKWAxnwAadambd5KbxaVsY9Gh3_6axdlJbDtOF84p2fqBJa4"
+PAYPAL_MODE = "live"  # Use "sandbox" for testing
+
+# Configure PayPal SDK
+paypalrestsdk.configure({
+    "mode": PAYPAL_MODE,
+    "client_id": PAYPAL_CLIENT_ID,
+    "client_secret": PAYPAL_CLIENT_SECRET
+})
 
 # ===== PRODUCTS =====
 PRODUCTS = {
@@ -148,10 +158,17 @@ def send_email(to_email, subject, body):
         print(f"❌ Failed to send email: {e}")
         return False
 
+# ============================================================
 # ===== ROUTES =====
+# ============================================================
+
 @app.route('/')
 def home():
     return render_template('index.html', products=PRODUCTS)
+
+# ============================================================
+# CHECKOUT ROUTES
+# ============================================================
 
 @app.route('/checkout/<product_id>', methods=['GET'])
 def checkout(product_id):
@@ -204,7 +221,6 @@ def paypal_redirect(product_id):
     <html>
     <head>
         <title>Redirecting to PayPal...</title>
-        <meta http-equiv="refresh" content="1; url={PAYPAL_URL}">
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
             body {{
@@ -299,6 +315,294 @@ def paypal_redirect(product_id):
     """
     return paypal_form
 
+# ============================================================
+# ===== APPLE PAY ROUTES =====
+# ============================================================
+
+@app.route('/create-apple-pay-order', methods=['POST'])
+def create_apple_pay_order():
+    """Create an order for Apple Pay"""
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        customer_name = data.get('customer_name')
+        customer_email = data.get('customer_email')
+        customer_phone = data.get('customer_phone', '')
+        customer_address = data.get('customer_address')
+        
+        if not all([product_id, customer_name, customer_email, customer_address]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        product = PRODUCTS.get(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+        
+        session['customer_data'] = {
+            'name': customer_name,
+            'email': customer_email,
+            'phone': customer_phone,
+            'address': customer_address,
+            'product_id': product_id
+        }
+        
+        order = paypalrestsdk.Order({
+            "intent": "CAPTURE",
+            "purchase_units": [{
+                "reference_id": f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "description": product['name'],
+                "amount": {
+                    "currency_code": "EUR",
+                    "value": str(product['price'])
+                }
+            }],
+            "application_context": {
+                "return_url": "https://mecha-toys.onrender.com/payment-success",
+                "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
+                "user_action": "PAY_NOW"
+            }
+        })
+        
+        if order.create():
+            return jsonify({
+                'order_id': order.id,
+                'status': 'created'
+            })
+        else:
+            print(f"Order creation error: {order.error}")
+            return jsonify({'error': order.error}), 400
+            
+    except Exception as e:
+        print(f"Error creating order: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/capture-apple-pay-order', methods=['POST'])
+def capture_apple_pay_order():
+    """Capture the payment after Apple Pay"""
+    try:
+        data = request.json
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({'error': 'Order ID required'}), 400
+        
+        order = paypalrestsdk.Order.find(order_id)
+        
+        if order.capture():
+            transaction_id = order.purchase_units[0].payments.captures[0].id
+            
+            customer_data = session.get('customer_data', {})
+            
+            product_id = customer_data.get('product_id')
+            product = PRODUCTS.get(product_id)
+            
+            if product:
+                order_id_internal = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                order_data = {
+                    'order_id': order_id_internal,
+                    'product': product['name'],
+                    'product_id': product['id'],
+                    'customer_name': customer_data.get('name'),
+                    'customer_email': customer_data.get('email'),
+                    'customer_phone': customer_data.get('phone', ''),
+                    'customer_address': customer_data.get('address'),
+                    'aliexpress_link': product['aliexpress_link'],
+                    'amount': product['price'],
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'paid',
+                    'payment_method': 'apple_pay',
+                    'paypal_transaction_id': transaction_id,
+                    'paypal_order_id': order_id
+                }
+                
+                try:
+                    with open('orders.json', 'r') as f:
+                        orders = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    orders = []
+                
+                orders.append(order_data)
+                with open('orders.json', 'w') as f:
+                    json.dump(orders, f, indent=2)
+                
+                send_order_email(
+                    customer_data.get('name'),
+                    customer_data.get('email'),
+                    customer_data.get('address'),
+                    product,
+                    customer_data.get('phone'),
+                    order_id_internal,
+                    transaction_id
+                )
+            
+            session.pop('customer_data', None)
+            
+            return jsonify({
+                'success': True,
+                'transaction_id': transaction_id
+            })
+        else:
+            print(f"Capture error: {order.error}")
+            return jsonify({'error': 'Failed to capture payment'}), 400
+            
+    except Exception as e:
+        print(f"Error capturing order: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ============================================================
+# ===== GOOGLE PAY ROUTES =====
+# ============================================================
+
+@app.route('/create-google-pay-order', methods=['POST'])
+def create_google_pay_order():
+    """Create an order for Google Pay - CORREGIDO"""
+    try:
+        data = request.json
+        print(f"📥 Google Pay create order request: {data}")
+        
+        product_id = data.get('product_id')
+        customer_name = data.get('customer_name')
+        customer_email = data.get('customer_email')
+        customer_phone = data.get('customer_phone', '')
+        customer_address = data.get('customer_address')
+        
+        if not all([product_id, customer_name, customer_email, customer_address]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        product = PRODUCTS.get(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+        
+        # Save customer data in session
+        session['customer_data'] = {
+            'name': customer_name,
+            'email': customer_email,
+            'phone': customer_phone,
+            'address': customer_address,
+            'product_id': product_id
+        }
+        
+        # Create order with PayPal
+        order = paypalrestsdk.Order({
+            "intent": "CAPTURE",
+            "purchase_units": [{
+                "reference_id": f"GP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "description": product['name'],
+                "amount": {
+                    "currency_code": "EUR",
+                    "value": str(product['price'])
+                },
+                "payee": {
+                    "email_address": PAYPAL_EMAIL
+                }
+            }],
+            "application_context": {
+                "return_url": "https://mecha-toys.onrender.com/payment-success",
+                "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
+                "user_action": "PAY_NOW",
+                "shipping_preference": "NO_SHIPPING"
+            }
+        })
+        
+        if order.create():
+            print(f"✅ Google Pay order created: {order.id}")
+            return jsonify({
+                'order_id': order.id,
+                'status': 'created'
+            })
+        else:
+            print(f"❌ Google Pay order creation error: {order.error}")
+            return jsonify({'error': order.error}), 400
+            
+    except Exception as e:
+        print(f"❌ Exception creating Google Pay order: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/capture-google-pay-order', methods=['POST'])
+def capture_google_pay_order():
+    """Capture the payment after Google Pay - CORREGIDO"""
+    try:
+        data = request.json
+        print(f"📥 Google Pay capture request: {data}")
+        
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({'error': 'Order ID required'}), 400
+        
+        # Find the order
+        order = paypalrestsdk.Order.find(order_id)
+        print(f"🔍 Found order: {order_id}")
+        
+        # Capture the payment
+        if order.capture():
+            transaction_id = order.purchase_units[0].payments.captures[0].id
+            print(f"✅ Payment captured: {transaction_id}")
+            
+            customer_data = session.get('customer_data', {})
+            product_id = customer_data.get('product_id')
+            product = PRODUCTS.get(product_id)
+            
+            if product:
+                order_id_internal = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                order_data = {
+                    'order_id': order_id_internal,
+                    'product': product['name'],
+                    'product_id': product['id'],
+                    'customer_name': customer_data.get('name'),
+                    'customer_email': customer_data.get('email'),
+                    'customer_phone': customer_data.get('phone', ''),
+                    'customer_address': customer_data.get('address'),
+                    'aliexpress_link': product['aliexpress_link'],
+                    'amount': product['price'],
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'paid',
+                    'payment_method': 'google_pay',
+                    'paypal_transaction_id': transaction_id,
+                    'paypal_order_id': order_id
+                }
+                
+                try:
+                    with open('orders.json', 'r') as f:
+                        orders = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    orders = []
+                
+                orders.append(order_data)
+                with open('orders.json', 'w') as f:
+                    json.dump(orders, f, indent=2)
+                
+                send_order_email(
+                    customer_data.get('name'),
+                    customer_data.get('email'),
+                    customer_data.get('address'),
+                    product,
+                    customer_data.get('phone'),
+                    order_id_internal,
+                    transaction_id
+                )
+                
+                print(f"✅ Order saved: {order_id_internal}")
+            
+            session.pop('customer_data', None)
+            
+            return jsonify({
+                'success': True,
+                'transaction_id': transaction_id
+            })
+        else:
+            print(f"❌ Capture failed: {order.error}")
+            return jsonify({'error': order.error}), 400
+            
+    except Exception as e:
+        print(f"❌ Exception capturing Google Pay order: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ============================================================
+# ===== ORDER PROCESSING ROUTES =====
+# ============================================================
+
 @app.route('/place-order')
 def place_order():
     """Process order after PayPal Standard payment"""
@@ -361,6 +665,59 @@ def place_order():
     
     return render_template('success.html', order=order_data)
 
+@app.route('/payment-success')
+def payment_success():
+    """Success page for Apple Pay / Google Pay"""
+    return redirect('/orders')
+
+@app.route('/payment-cancel')
+def payment_cancel():
+    """Cancel page"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Payment Cancelled - Mecha Toys</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+        }
+        h2 { color: #fdcb6e; margin-bottom: 10px; }
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #0070ba;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+        }
+    </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>⚠️ Payment Cancelled</h2>
+            <p>Your payment was cancelled. No charges were made.</p>
+            <a href="/" class="btn">← Back to Store</a>
+        </div>
+    </body>
+    </html>
+    """
+
 @app.route('/orders')
 def view_orders():
     try:
@@ -401,6 +758,7 @@ def view_orders():
                 <tr>
                     <th>Order ID</th>
                     <th>Product</th>
+                    <th>Method</th>
                     <th>Customer</th>
                     <th>Total</th>
                     <th>Status</th>
@@ -411,10 +769,13 @@ def view_orders():
             for order in reversed(orders):
                 status_color = "status-paid" if order.get('status') == 'paid' else ""
                 status_text = "✅ PAID" if order.get('status') == 'paid' else "⏳ PENDING"
+                method = order.get('payment_method', 'paypal_standard')
+                method_icon = "🍎" if method == "apple_pay" else "🤖" if method == "google_pay" else "💳"
                 html += f"""
                 <tr>
                     <td><strong>{order.get('order_id', 'N/A')}</strong></td>
                     <td>{order.get('product', 'N/A')}</td>
+                    <td>{method_icon} {method.replace('_', ' ').title()}</td>
                     <td>{order.get('customer_name', 'N/A')}</td>
                     <td><strong>€{order.get('amount', 0)}</strong></td>
                     <td class="{status_color}">{status_text}</td>

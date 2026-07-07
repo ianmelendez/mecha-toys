@@ -6,8 +6,8 @@ import json
 from datetime import datetime
 import secrets
 import os
-import urllib.parse
 import uuid
+import paypalrestsdk  # NUEVA IMPORTACIÓN
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -22,13 +22,20 @@ SMTP_PORT = 587
 
 # ===== PAYPAL CONFIGURATION =====
 PAYPAL_EMAIL = "mecchachameleonstore@gmail.com"
-PAYPAL_SANDBOX = False  # Set to False for production
-PAYPAL_URL = "https://www.sandbox.paypal.com/cgi-bin/webscr" if PAYPAL_SANDBOX else "https://www.paypal.com/cgi-bin/webscr"
+PAYPAL_SANDBOX = False
+PAYPAL_URL = "https://www.paypal.com/cgi-bin/webscr"
 
-# Your Render.com URLs
-BASE_URL = "https://mecha-toys.onrender.com"
-PAYPAL_RETURN_URL = f"{BASE_URL}/payment-success"
-PAYPAL_CANCEL_URL = f"{BASE_URL}/payment-cancel"
+# ===== PAYPAL API CONFIGURATION (para Apple Pay) =====
+PAYPAL_CLIENT_ID = "ARlmoa47tt-GIkbslRohxq74lrNmv7kdpo6TTk4WYzS4DkZ5VqAk1CjVDzoaCHOHeFYcy_UQdWw2OqKj"
+PAYPAL_CLIENT_SECRET = "EDQ2PE-NJO4IQoivFo9_EiAiKm-LH9B5CKWAxnwAadambd5KbxaVsY9Gh3_6axdlJbDtOF84p2fqBJa4"
+PAYPAL_MODE = "live"  # "sandbox" para pruebas
+
+# Configurar PayPal SDK
+paypalrestsdk.configure({
+    "mode": PAYPAL_MODE,
+    "client_id": PAYPAL_CLIENT_ID,
+    "client_secret": PAYPAL_CLIENT_SECRET
+})
 
 # ===== YOUR PRODUCTS =====
 PRODUCTS = {
@@ -57,66 +64,76 @@ def serve_css():
 def serve_images(filename):
     return send_from_directory('images', filename)
 
+# ===== APPLE PAY DOMAIN VERIFICATION =====
+@app.route('/.well-known/apple-developer-merchantid-domain-association')
+def serve_apple_pay():
+    """Serve Apple Pay domain verification file"""
+    try:
+        return send_from_directory('.', 'apple-developer-merchantid-domain-association')
+    except Exception as e:
+        print(f"Error serving Apple Pay verification: {e}")
+        return "File not found", 404
+
 # ===== SEND EMAIL FUNCTION =====
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
     """Send order details to YOU and confirmation to customer"""
     
     # 1. Email to YOU
-    you_subject = f"🛒 NEW ORDER - {product['name']}"
+    you_subject = f"🛒 NUEVO PEDIDO - {product['name']}"
     you_body = f"""
-🎉 NEW ORDER RECEIVED!
+🎉 NUEVO PEDIDO RECIBIDO!
 
-Order ID: {order_id or 'N/A'}
-Product: {product['name']}
-Price: €{product['price']}
-Payment Method: PayPal
-PayPal Transaction ID: {txn_id or 'N/A'}
+ID del Pedido: {order_id or 'N/A'}
+Producto: {product['name']}
+Precio: €{product['price']}
+Método de pago: PayPal
+ID Transacción PayPal: {txn_id or 'N/A'}
 
-CUSTOMER DETAILS:
-Name: {customer_name}
+DATOS DEL CLIENTE:
+Nombre: {customer_name}
 Email: {customer_email}
-Phone: {phone or 'Not provided'}
-Address: {customer_address}
+Teléfono: {phone or 'No proporcionado'}
+Dirección: {customer_address}
 
 ---
-Order time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Hora del pedido: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-⚡ ACTION REQUIRED: 
-1. PayPal has notified you of the payment
-2. Go to the AliExpress link
-3. Add to cart and complete the purchase
-4. Ship to the customer's address
+⚡ ACCIÓN REQUERIDA: 
+1. PayPal te ha notificado el pago
+2. Entra al enlace de AliExpress
+3. Añade al carrito y finaliza la compra
+4. Envía al cliente a su dirección
 
-ALIEXPRESS LINK:
+ENLACE DE ALIEXPRESS:
 {product['aliexpress_link']}
 """
     
     send_email(YOUR_EMAIL, you_subject, you_body)
     
     # 2. Confirmation to CUSTOMER
-    customer_subject = f"✅ Order Confirmation - Mecha Toys"
+    customer_subject = f"✅ Confirmación de Pedido - Mecha Toys"
     customer_body = f"""
-Hello {customer_name},
+Hola {customer_name},
 
-Thank you for your order! We have received your payment successfully.
+¡Gracias por tu pedido! Hemos recibido tu pago correctamente.
 
-Order Details:
-• Order ID: {order_id or 'N/A'}
-• Product: {product['name']}
-• Price: €{product['price']}
-• Payment Method: PayPal
+Detalles del Pedido:
+• Pedido ID: {order_id or 'N/A'}
+• Producto: {product['name']}
+• Precio: €{product['price']}
+• Método de pago: PayPal
 
-Shipping Address:
+Dirección de Envío:
 {customer_address}
 
-Next Steps:
-1. We will process your order within 24 hours
-2. We will send you a tracking number via email
-3. Shipping takes 7-15 business days
+Próximos pasos:
+1. Procesaremos tu pedido en las próximas 24 horas
+2. Te enviaremos un email con el número de seguimiento
+3. El envío tarda 7-15 días hábiles
 
-Questions? Reply to this email.
+¿Preguntas? Responde a este email.
 
-Thank you for choosing Mecha Toys! 🦎
+¡Gracias por elegir Mecha Toys! 🦎
 """
     
     send_email(customer_email, customer_subject, customer_body)
@@ -148,137 +165,63 @@ def home():
 
 @app.route('/checkout/<product_id>', methods=['GET'])
 def checkout(product_id):
-    """Show checkout form"""
+    """Mostrar checkout con PayPal y Apple Pay"""
     product = PRODUCTS.get(product_id)
     if not product:
         return "Product not found", 404
-    return render_template('checkout.html', product=product)
+    return render_template('checkout_with_applepay.html', 
+                         product=product,
+                         client_id=PAYPAL_CLIENT_ID,
+                         paypal_email=PAYPAL_EMAIL,
+                         paypal_url=PAYPAL_URL)
 
 @app.route('/checkout/<product_id>', methods=['POST'])
 def process_checkout(product_id):
-    """Process checkout form and redirect to PayPal"""
+    """Procesar el checkout (PayPal Standard)"""
     product = PRODUCTS.get(product_id)
     if not product:
         return "Product not found", 404
     
-    # Get form data
+    # Obtener datos del formulario
     name = request.form.get('name')
     email = request.form.get('email')
     phone = request.form.get('phone', '')
     address = request.form.get('address')
     
     if not all([name, email, address]):
-        return "Missing required fields", 400
+        return "Faltan datos requeridos", 400
     
-    # Generate unique order ID
-    order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6]}"
-    
-    # Store customer data in session with order_id
+    # Guardar en sesión
     session['customer_data'] = {
         'name': name,
         'email': email,
         'phone': phone,
         'address': address,
-        'product_id': product_id,
-        'order_id': order_id
+        'product_id': product_id
     }
     
-    # Build PayPal form with all data
+    # Redirigir a PayPal
+    return redirect(url_for('paypal_redirect', product_id=product_id))
+
+@app.route('/paypal-redirect/<product_id>')
+def paypal_redirect(product_id):
+    """Redirigir a PayPal para pago estándar"""
+    product = PRODUCTS.get(product_id)
+    if not product:
+        return "Product not found", 404
+    
+    customer_data = session.get('customer_data', {})
+    
+    return_url = f"https://mecha-toys.onrender.com/place-order?product_id={product_id}&name={customer_data.get('name')}&email={customer_data.get('email')}&address={customer_data.get('address')}&phone={customer_data.get('phone')}"
+    
     paypal_form = f"""
     <!DOCTYPE html>
     <html>
-    <head>
-        <title>Redirecting to PayPal...</title>
-        <style>
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                padding: 20px;
-            }}
-            .container {{
-                background: white;
-                padding: 50px;
-                border-radius: 24px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-                text-align: center;
-                max-width: 500px;
-                width: 100%;
-            }}
-            .spinner {{
-                width: 60px;
-                height: 60px;
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #0070ba;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 25px;
-            }}
-            @keyframes spin {{
-                0% {{ transform: rotate(0deg); }}
-                100% {{ transform: rotate(360deg); }}
-            }}
-            h2 {{
-                color: #1a1a2e;
-                margin-bottom: 10px;
-                font-size: 1.5rem;
-            }}
-            p {{
-                color: #636e72;
-                margin-bottom: 25px;
-                line-height: 1.6;
-            }}
-            .btn-paypal {{
-                background: #0070ba;
-                color: white;
-                border: none;
-                padding: 16px 40px;
-                border-radius: 12px;
-                font-size: 1.1rem;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(0,112,186,0.3);
-                width: 100%;
-            }}
-            .btn-paypal:hover {{
-                background: #003087;
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(0,112,186,0.4);
-            }}
-            .product-info {{
-                background: #f8f9fa;
-                padding: 15px;
-                border-radius: 12px;
-                margin: 20px 0;
-                text-align: left;
-            }}
-            .product-info p {{
-                margin: 5px 0;
-                color: #2d3436;
-            }}
-            .product-info .price {{
-                font-size: 1.3rem;
-                font-weight: 700;
-                color: #e17055;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="spinner"></div>
-            <h2>🔄 Redirecting to PayPal...</h2>
-            <p>Please wait while we prepare your payment.</p>
-            
-            <div class="product-info">
-                <p><strong>Product:</strong> {product['name']}</p>
-                <p class="price">Total: €{product['price']}</p>
-            </div>
-            
+    <head><title>Redirigiendo a PayPal...</title></head>
+    <body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:Arial;background:#f5f6fa;">
+        <div style="text-align:center;padding:40px;background:white;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,0.1);">
+            <h2 style="color:#1a1a2e;">🔄 Redirigiendo a PayPal...</h2>
+            <p style="color:#636e72;">Por favor, espera un momento.</p>
             <form action="{PAYPAL_URL}" method="post" id="paypal-form">
                 <input type="hidden" name="cmd" value="_xclick">
                 <input type="hidden" name="business" value="{PAYPAL_EMAIL}">
@@ -290,137 +233,197 @@ def process_checkout(product_id):
                 <input type="hidden" name="no_note" value="1">
                 <input type="hidden" name="tax_rate" value="0.00">
                 <input type="hidden" name="shipping" value="0.00">
-                <input type="hidden" name="return" value="{PAYPAL_RETURN_URL}">
-                <input type="hidden" name="cancel_return" value="{PAYPAL_CANCEL_URL}">
-                <input type="hidden" name="rm" value="2">
-                <input type="hidden" name="custom" value="{order_id}">
-                
-                <!-- Hidden fields with customer data -->
-                <input type="hidden" name="customer_data" value="{urllib.parse.quote(json.dumps(session['customer_data']))}">
-                
-                <button type="submit" class="btn-paypal">
-                    💳 Proceed to PayPal
-                </button>
+                <input type="hidden" name="return" value="{return_url}">
+                <input type="hidden" name="cancel_return" value="https://mecha-toys.onrender.com/">
             </form>
-            
-            <p style="margin-top: 20px; font-size: 0.85rem; color: #b2bec3;">
-                You will be redirected to PayPal to complete your payment securely.
-            </p>
+            <button onclick="document.getElementById('paypal-form').submit()" style="padding:15px 40px;background:#0070ba;color:white;border:none;border-radius:12px;font-size:1.2rem;cursor:pointer;">Ir a PayPal</button>
         </div>
-        
-        <script>
-            // Auto-submit after 2 seconds
-            setTimeout(function() {{
-                document.getElementById('paypal-form').submit();
-            }}, 2000);
-            
-            // Also allow manual click
-            document.querySelector('.btn-paypal').addEventListener('click', function(e) {{
-                // Prevent default if already submitted
-            }});
-        </script>
     </body>
     </html>
     """
-    
     return paypal_form
 
-@app.route('/payment-success')
-def payment_success():
-    """Handle successful PayPal payment"""
-    # Get data from PayPal
-    txn_id = request.args.get('txn_id')
+# ===== NUEVA RUTA PARA APPLE PAY =====
+@app.route('/create-apple-pay-order', methods=['POST'])
+def create_apple_pay_order():
+    """Crear un pedido para Apple Pay"""
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        customer_name = data.get('customer_name')
+        customer_email = data.get('customer_email')
+        customer_phone = data.get('customer_phone', '')
+        customer_address = data.get('customer_address')
+        
+        if not all([product_id, customer_name, customer_email, customer_address]):
+            return jsonify({'error': 'Faltan datos requeridos'}), 400
+        
+        product = PRODUCTS.get(product_id)
+        if not product:
+            return jsonify({'error': 'Producto no encontrado'}), 404
+        
+        # Guardar datos del cliente en sesión
+        session['customer_data'] = {
+            'name': customer_name,
+            'email': customer_email,
+            'phone': customer_phone,
+            'address': customer_address,
+            'product_id': product_id
+        }
+        
+        # Crear pedido en PayPal
+        order = paypalrestsdk.Order({
+            "intent": "CAPTURE",
+            "purchase_units": [{
+                "reference_id": f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "description": product['name'],
+                "amount": {
+                    "currency_code": "EUR",
+                    "value": str(product['price'])
+                }
+            }],
+            "application_context": {
+                "return_url": "https://mecha-toys.onrender.com/payment-success",
+                "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
+                "user_action": "PAY_NOW"
+            }
+        })
+        
+        if order.create():
+            return jsonify({
+                'order_id': order.id,
+                'status': 'created'
+            })
+        else:
+            return jsonify({'error': order.error}), 400
+            
+    except Exception as e:
+        print(f"Error creating order: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== NUEVA RUTA PARA CAPTURAR PAGO DE APPLE PAY =====
+@app.route('/capture-apple-pay-order', methods=['POST'])
+def capture_apple_pay_order():
+    """Capturar el pago después de Apple Pay"""
+    try:
+        data = request.json
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({'error': 'Order ID requerido'}), 400
+        
+        # Capturar el pago
+        order = paypalrestsdk.Order.find(order_id)
+        
+        if order.capture():
+            # Pago capturado exitosamente
+            transaction_id = order.purchase_units[0].payments.captures[0].id
+            
+            # Obtener datos del cliente de la sesión
+            customer_data = session.get('customer_data', {})
+            
+            product_id = customer_data.get('product_id')
+            product = PRODUCTS.get(product_id)
+            
+            if product:
+                # Crear ID de pedido
+                order_id_internal = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                # Guardar pedido
+                order_data = {
+                    'order_id': order_id_internal,
+                    'product': product['name'],
+                    'product_id': product['id'],
+                    'customer_name': customer_data.get('name'),
+                    'customer_email': customer_data.get('email'),
+                    'customer_phone': customer_data.get('phone', ''),
+                    'customer_address': customer_data.get('address'),
+                    'aliexpress_link': product['aliexpress_link'],
+                    'amount': product['price'],
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'paid',
+                    'payment_method': 'apple_pay',
+                    'paypal_transaction_id': transaction_id,
+                    'paypal_order_id': order_id
+                }
+                
+                # Guardar en orders.json
+                try:
+                    with open('orders.json', 'r') as f:
+                        orders = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    orders = []
+                
+                orders.append(order_data)
+                with open('orders.json', 'w') as f:
+                    json.dump(orders, f, indent=2)
+                
+                # Enviar emails
+                send_order_email(
+                    customer_data.get('name'),
+                    customer_data.get('email'),
+                    customer_data.get('address'),
+                    product,
+                    customer_data.get('phone'),
+                    order_id_internal,
+                    transaction_id
+                )
+            
+            # Limpiar sesión
+            session.pop('customer_data', None)
+            
+            return jsonify({
+                'success': True,
+                'transaction_id': transaction_id
+            })
+        else:
+            return jsonify({'error': 'Error al capturar el pago'}), 400
+            
+    except Exception as e:
+        print(f"Error capturing order: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/place-order')
+def place_order():
+    """Procesa el pedido después del pago con PayPal Standard"""
+    product_id = request.args.get('product_id')
+    customer_name = request.args.get('name')
+    customer_email = request.args.get('email')
+    customer_phone = request.args.get('phone')
+    customer_address = request.args.get('address')
+    
+    # PayPal también envía estos datos adicionales
     payment_status = request.args.get('payment_status')
+    txn_id = request.args.get('txn_id')
     payer_email = request.args.get('payer_email')
-    custom = request.args.get('custom')  # This is our order_id
     
-    # Get customer data from session
-    customer_data = session.get('customer_data', {})
+    if not all([product_id, customer_name, customer_email, customer_address]):
+        return "Faltan datos del cliente", 400
     
-    if not customer_data:
-        # Try to get from URL parameter if session is lost
-        customer_data_json = request.args.get('customer_data')
-        if customer_data_json:
-            try:
-                customer_data = json.loads(urllib.parse.unquote(customer_data_json))
-            except:
-                pass
-    
-    if not customer_data:
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Error - Mecha Toys</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body {
-                    font-family: 'Inter', sans-serif;
-                    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: 100vh;
-                    padding: 20px;
-                }
-                .container {
-                    background: white;
-                    padding: 50px;
-                    border-radius: 24px;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-                    text-align: center;
-                    max-width: 500px;
-                }
-                h2 { color: #e17055; margin-bottom: 10px; }
-                .btn {
-                    display: inline-block;
-                    margin-top: 20px;
-                    padding: 12px 30px;
-                    background: #0070ba;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 10px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h2>❌ Error Processing Order</h2>
-                <p>We couldn't find your order data. Please contact support.</p>
-                <a href="/" class="btn">← Back to Store</a>
-            </div>
-        </body>
-        </html>
-        """, 400
-    
-    # Get product
-    product_id = customer_data.get('product_id')
     product = PRODUCTS.get(product_id)
     if not product:
-        return "Product not found", 404
+        return "Producto no encontrado", 404
     
-    # Create order record
-    order_id = custom or customer_data.get('order_id', f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}")
+    order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
     order_data = {
         'order_id': order_id,
         'product': product['name'],
         'product_id': product['id'],
-        'customer_name': customer_data.get('name'),
-        'customer_email': customer_data.get('email'),
-        'customer_phone': customer_data.get('phone', ''),
-        'customer_address': customer_data.get('address'),
+        'customer_name': customer_name,
+        'customer_email': customer_email,
+        'customer_phone': customer_phone,
+        'customer_address': customer_address,
         'aliexpress_link': product['aliexpress_link'],
         'amount': product['price'],
         'timestamp': datetime.now().isoformat(),
         'status': 'paid' if payment_status == 'Completed' else 'pending',
-        'payment_method': 'paypal',
+        'payment_method': 'paypal_standard',
         'paypal_txn_id': txn_id,
         'paypal_payer_email': payer_email,
         'paypal_status': payment_status
     }
     
-    # Save to orders.json
     try:
         with open('orders.json', 'r') as f:
             orders = json.load(f)
@@ -431,69 +434,68 @@ def payment_success():
     with open('orders.json', 'w') as f:
         json.dump(orders, f, indent=2)
     
-    # Send confirmation emails
-    if payment_status == 'Completed':
-        send_order_email(
-            customer_data.get('name'),
-            customer_data.get('email'),
-            customer_data.get('address'),
-            product,
-            customer_data.get('phone'),
-            order_id,
-            txn_id
-        )
+    send_order_email(
+        customer_name,
+        customer_email,
+        customer_address,
+        product,
+        customer_phone,
+        order_id,
+        txn_id
+    )
     
-    # Clear session
     session.pop('customer_data', None)
     
-    # Show success page
     return render_template('success.html', order=order_data)
+
+@app.route('/payment-success')
+def payment_success():
+    """Página de éxito para Apple Pay"""
+    return redirect('/orders')
 
 @app.route('/payment-cancel')
 def payment_cancel():
-    """Handle cancelled PayPal payment"""
+    """Página de cancelación"""
     return """
     <!DOCTYPE html>
     <html>
-    <head>
-        <title>Payment Cancelled - Mecha Toys</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-                font-family: 'Inter', sans-serif;
-                background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                padding: 20px;
-            }
-            .container {
-                background: white;
-                padding: 50px;
-                border-radius: 24px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-                text-align: center;
-                max-width: 500px;
-            }
-            h2 { color: #fdcb6e; margin-bottom: 10px; }
-            .btn {
-                display: inline-block;
-                margin-top: 20px;
-                padding: 12px 30px;
-                background: #0070ba;
-                color: white;
-                text-decoration: none;
-                border-radius: 10px;
-            }
-        </style>
+    <head><title>Pago Cancelado - Mecha Toys</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+        }
+        h2 { color: #fdcb6e; margin-bottom: 10px; }
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #0070ba;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+        }
+    </style>
     </head>
     <body>
         <div class="container">
-            <h2>⚠️ Payment Cancelled</h2>
-            <p>Your payment was cancelled. No charges were made.</p>
-            <p style="color: #636e72; font-size: 0.9rem;">You can try again anytime.</p>
-            <a href="/" class="btn">← Back to Store</a>
+            <h2>⚠️ Pago Cancelado</h2>
+            <p>Tu pago fue cancelado. No se realizaron cargos.</p>
+            <a href="/" class="btn">← Volver a la tienda</a>
         </div>
     </body>
     </html>
@@ -509,7 +511,7 @@ def view_orders():
         <!DOCTYPE html>
         <html>
         <head>
-            <title>📦 Orders - Mecha Toys</title>
+            <title>📦 Pedidos - Mecha Toys</title>
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body { font-family: 'Inter', sans-serif; padding: 40px; background: #f5f6fa; }
@@ -529,7 +531,7 @@ def view_orders():
         </head>
         <body>
             <div class="container">
-                <h1>📦 All Orders</h1>
+                <h1>📦 Todos los Pedidos</h1>
                 <p class="total">Total: <strong>""" + str(len(orders)) + """</strong></p>
         """
         
@@ -537,30 +539,30 @@ def view_orders():
             html += """
             <table>
                 <tr>
-                    <th>Order ID</th>
-                    <th>Product</th>
-                    <th>Customer</th>
-                    <th>Email</th>
+                    <th>ID Pedido</th>
+                    <th>Producto</th>
+                    <th>Método</th>
+                    <th>Cliente</th>
                     <th>Total</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>AliExpress</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
                 </tr>
             """
             
             for order in reversed(orders):
                 status_color = "status-paid" if order.get('status') == 'paid' else ""
-                status_text = "✅ PAID" if order.get('status') == 'paid' else "⏳ PENDING"
+                status_text = "✅ PAGADO" if order.get('status') == 'paid' else "⏳ PENDIENTE"
+                method = order.get('payment_method', 'paypal_standard')
+                method_icon = "🍎" if method == "apple_pay" else "💳"
                 html += f"""
                 <tr>
                     <td><strong>{order.get('order_id', 'N/A')}</strong></td>
                     <td>{order.get('product', 'N/A')}</td>
+                    <td>{method_icon} {method.replace('_', ' ').title()}</td>
                     <td>{order.get('customer_name', 'N/A')}</td>
-                    <td>{order.get('customer_email', 'N/A')}</td>
                     <td><strong>€{order.get('amount', 0)}</strong></td>
                     <td class="{status_color}">{status_text}</td>
                     <td>{order.get('timestamp', 'N/A')[:16]}</td>
-                    <td><a href="{order.get('aliexpress_link', '#')}" target="_blank" style="color: #0070ba;">🔗 Buy</a></td>
                 </tr>
                 """
             
@@ -568,13 +570,13 @@ def view_orders():
         else:
             html += """
             <div class="no-orders">
-                <h2>📭 No orders yet</h2>
-                <p>Orders will appear here when customers make purchases.</p>
+                <h2>📭 No hay pedidos aún</h2>
+                <p>Los pedidos aparecerán aquí cuando los clientes compren.</p>
             </div>
             """
         
         html += """
-            <a href="/" class="back-link">← Back to store</a>
+            <a href="/" class="back-link">← Volver a la tienda</a>
             </div>
         </body>
         </html>
@@ -584,21 +586,11 @@ def view_orders():
     except FileNotFoundError:
         return """
         <div style="text-align:center;padding:60px;">
-            <h2>📭 No orders yet</h2>
-            <a href="/" style="display:inline-block;margin-top:20px;padding:12px 30px;background:#0070ba;color:white;text-decoration:none;border-radius:10px;">← Back to store</a>
+            <h2>📭 No hay pedidos aún</h2>
+            <a href="/" style="display:inline-block;margin-top:20px;padding:12px 30px;background:#0070ba;color:white;text-decoration:none;border-radius:10px;">← Volver a la tienda</a>
         </div>
         """
-    
-# ===== APPLE PAY DOMAIN VERIFICATION =====
-@app.route('/.well-known/apple-developer-merchantid-domain-association')
-def serve_apple_pay():
-    """Serve Apple Pay domain verification file"""
-    try:
-        return send_from_directory('.', 'apple-developer-merchantid-domain-association')
-    except Exception as e:
-        print(f"Error serving Apple Pay verification: {e}")
-        return "File not found", 404
-    
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 

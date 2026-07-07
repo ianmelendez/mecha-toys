@@ -522,244 +522,234 @@
         }
 
         // ============================================
-        // GOOGLE PAY SETUP - FOLLOWING PAYPAL DOCS
         // ============================================
-        function setupGooglePay() {
-            var container = document.getElementById('googlepay-container');
-            var message = container.querySelector('.payment-message');
+// GOOGLE PAY SETUP - VERSIÓN CORREGIDA
+// ============================================
+function setupGooglePay() {
+    var container = document.getElementById('googlepay-container');
+    var message = container.querySelector('.payment-message');
+    
+    console.log('=== SETUP GOOGLE PAY ===');
+    
+    // Check if PayPal SDK is loaded
+    if (typeof paypal === 'undefined') {
+        console.log('❌ PayPal SDK not loaded');
+        message.textContent = '🤖 Google Pay not available';
+        return;
+    }
+    
+    // Check if Google Pay is available in the SDK
+    if (typeof paypal.Googlepay === 'undefined') {
+        console.log('❌ Google Pay not available in SDK');
+        message.textContent = '🤖 Google Pay not available';
+        return;
+    }
+    
+    console.log('✅ PayPal SDK loaded with Google Pay');
+    
+    // Check if Google Pay SDK is loaded
+    if (typeof google === 'undefined' || typeof google.payments === 'undefined') {
+        console.log('❌ Google Pay SDK not loaded (waiting...)');
+        message.textContent = '🤖 Loading Google Pay...';
+        return;
+    }
+    
+    console.log('✅ Google Pay SDK loaded!');
+    
+    // Get Google Pay configuration from PayPal
+    var googlepay = paypal.Googlepay();
+    
+    googlepay.config()
+        .then(function(config) {
+            console.log('Google Pay config:', config);
             
-            console.log('=== SETUP GOOGLE PAY ===');
+            // Create allowed payment methods
+            var allowedPaymentMethods = [{
+                type: 'CARD',
+                parameters: {
+                    allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                    allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER']
+                },
+                tokenizationSpecification: {
+                    type: 'PAYMENT_GATEWAY',
+                    parameters: {
+                        'gateway': 'paypal',
+                        'gatewayMerchantId': clientId
+                    }
+                }
+            }];
             
-            // Check if PayPal SDK is loaded
-            if (typeof paypal === 'undefined') {
-                console.log('❌ PayPal SDK not loaded');
-                message.textContent = '🤖 Google Pay not available';
-                return;
-            }
+            // Create the payments client
+            var paymentsClient = new google.payments.api.PaymentsClient({
+                environment: 'PRODUCTION'
+            });
             
-            // Check if Google Pay is available in the SDK
-            if (typeof paypal.Googlepay === 'undefined') {
-                console.log('❌ Google Pay not available in SDK');
-                message.textContent = '🤖 Google Pay not available';
-                return;
-            }
+            // Check if ready to pay
+            var isReadyToPayRequest = {
+                apiVersion: 2,
+                apiVersionMinor: 0,
+                allowedPaymentMethods: allowedPaymentMethods
+            };
             
-            console.log('✅ PayPal SDK loaded with Google Pay');
-            
-            // Check if Google Pay SDK is loaded
-            if (typeof google === 'undefined' || typeof google.payments === 'undefined') {
-                console.log('❌ Google Pay SDK not loaded (waiting...)');
-                message.textContent = '🤖 Loading Google Pay...';
-                return;  // Will retry
-            }
-            
-            console.log('✅ Google Pay SDK loaded!');
-            
-            // Get Google Pay configuration from PayPal
-            var googlepay = paypal.Googlepay();
-            
-            googlepay.config()
-                .then(function(config) {
-                    console.log('Google Pay config:', config);
+            paymentsClient.isReadyToPay(isReadyToPayRequest)
+                .then(function(response) {
+                    console.log('isReadyToPay response:', response);
                     
-                    // Create PaymentDataRequest for Google Pay
-                    var paymentDataRequest = {
-                        apiVersion: 2,
-                        apiVersionMinor: 0,
-                        allowedPaymentMethods: config.allowedPaymentMethods || [{
-                            type: 'CARD',
-                            parameters: {
-                                allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-                                allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER']
+                    if (response.result) {
+                        console.log('✅ Google Pay is ready!');
+                        message.textContent = '';
+                        
+                        // Create payment data request
+                        var paymentDataRequest = {
+                            apiVersion: 2,
+                            apiVersionMinor: 0,
+                            allowedPaymentMethods: allowedPaymentMethods,
+                            transactionInfo: {
+                                currencyCode: 'EUR',
+                                totalPriceStatus: 'FINAL',
+                                totalPrice: productPrice.toFixed(2),
+                                countryCode: 'ES'
                             },
-                            tokenizationSpecification: {
-                                type: 'PAYMENT_GATEWAY',
-                                parameters: {
-                                    'gateway': 'paypal',
-                                    'gatewayMerchantId': clientId
-                                }
-                            }
-                        }],
-                        merchantInfo: config.merchantInfo || {
-                            merchantId: clientId,
-                            merchantName: 'Mecha Toys'
-                        },
-                        transactionInfo: {
-                            currencyCode: 'EUR',
-                            totalPriceStatus: 'FINAL',
-                            totalPrice: productPrice.toFixed(2),
-                            countryCode: 'ES'
-                        },
-                        callbackIntents: ['PAYMENT_AUTHORIZATION']
-                    };
-                    
-                    console.log('PaymentDataRequest:', paymentDataRequest);
-                    
-                    // Check if the device/browser can make Google Pay payments
-                    var paymentsClient = new google.payments.api.PaymentsClient({
-                        environment: 'PRODUCTION'  // Change to 'TEST' for sandbox
-                    });
-                    
-                    var isReadyToPayRequest = {
-                        apiVersion: 2,
-                        apiVersionMinor: 0,
-                        allowedPaymentMethods: config.allowedPaymentMethods || [{
-                            type: 'CARD',
-                            parameters: {
-                                allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-                                allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER']
-                            }
-                        }]
-                    };
-                    
-                    paymentsClient.isReadyToPay(isReadyToPayRequest)
-                        .then(function(response) {
-                            console.log('isReadyToPay response:', response);
-                            
-                            if (response.result) {
-                                console.log('✅ Google Pay is ready!');
-                                message.textContent = '';
-                                
-                                // Create Google Pay button
-                                var button = paymentsClient.createButton({
-                                    onClick: function() {
-                                        console.log('🤖 Google Pay button clicked!');
-                                        onGooglePayPaymentButtonClicked(paymentsClient, paymentDataRequest);
-                                    },
-                                    allowedPaymentMethods: config.allowedPaymentMethods || [{
-                                        type: 'CARD',
-                                        parameters: {
-                                            allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-                                            allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER']
-                                        }
-                                    }],
-                                    buttonColor: 'black',
-                                    buttonType: 'pay'
-                                });
-                                
-                                button.style.width = '100%';
-                                button.style.maxWidth = '400px';
-                                button.style.height = '50px';
-                                button.style.borderRadius = '12px';
-                                
-                                container.innerHTML = '';
-                                container.appendChild(button);
-                                
-                            } else {
-                                console.log('❌ Google Pay not ready on this device');
-                                message.textContent = '🤖 Google Pay not available';
-                            }
-                        })
-                        .catch(function(error) {
-                            console.error('isReadyToPay error:', error);
-                            message.textContent = '🤖 Google Pay not available';
+                            merchantInfo: {
+                                merchantId: clientId,
+                                merchantName: 'Mecha Toys'
+                            },
+                            callbackIntents: ['PAYMENT_AUTHORIZATION']
+                        };
+                        
+                        // Create button
+                        var button = paymentsClient.createButton({
+                            onClick: function() {
+                                console.log('🤖 Google Pay button clicked!');
+                                onGooglePayPaymentButtonClicked(paymentsClient, paymentDataRequest);
+                            },
+                            allowedPaymentMethods: allowedPaymentMethods,
+                            buttonColor: 'black',
+                            buttonType: 'pay'
                         });
+                        
+                        button.style.width = '100%';
+                        button.style.maxWidth = '400px';
+                        button.style.height = '50px';
+                        button.style.borderRadius = '12px';
+                        
+                        container.innerHTML = '';
+                        container.appendChild(button);
+                        
+                    } else {
+                        console.log('❌ Google Pay not ready on this device');
+                        message.textContent = '🤖 Google Pay not available';
+                    }
                 })
                 .catch(function(error) {
-                    console.error('Google Pay config error:', error);
-                    message.textContent = '🤖 Google Pay error';
+                    console.error('isReadyToPay error:', error);
+                    message.textContent = '🤖 Google Pay not available';
                 });
-        }
+        })
+        .catch(function(error) {
+            console.error('Google Pay config error:', error);
+            message.textContent = '🤖 Google Pay error';
+        });
+}
 
-        // ============================================
-        // GOOGLE PAY PAYMENT HANDLER
-        // ============================================
-        function onGooglePayPaymentButtonClicked(paymentsClient, paymentDataRequest) {
-            console.log('=== GOOGLE PAY PAYMENT STARTED ===');
+// ============================================
+// GOOGLE PAY PAYMENT HANDLER - CORREGIDO
+// ============================================
+function onGooglePayPaymentButtonClicked(paymentsClient, paymentDataRequest) {
+    console.log('=== GOOGLE PAY PAYMENT STARTED ===');
+    
+    var customerData = getCustomerData();
+    if (!customerData) {
+        alert('Please fill in your shipping details first.');
+        return;
+    }
+    
+    showLoading();
+    
+    // Load payment data (shows Google Pay sheet)
+    paymentsClient.loadPaymentData(paymentDataRequest)
+        .then(function(paymentData) {
+            console.log('Google Pay payment data received:', paymentData);
             
-            var customerData = getCustomerData();
-            if (!customerData) {
-                alert('Please fill in your shipping details first.');
-                return;
-            }
-            
-            showLoading();
-            
-            // Load payment data (shows Google Pay sheet)
-            paymentsClient.loadPaymentData(paymentDataRequest)
-                .then(function(paymentData) {
-                    console.log('Google Pay payment data received:', paymentData);
+            // Create order in PayPal
+            return fetch('/create-google-pay-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: productId,
+                    customer_name: customerData.name,
+                    customer_email: customerData.email,
+                    customer_phone: customerData.phone,
+                    customer_address: customerData.address
+                })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(orderData) {
+                if (orderData.error) {
+                    throw new Error(orderData.error);
+                }
+                
+                console.log('✅ Google Pay order created:', orderData.order_id);
+                var orderId = orderData.order_id;
+                
+                // Confirm order with PayPal using the paymentMethodData
+                var googlepay = paypal.Googlepay();
+                
+                return googlepay.confirmOrder({
+                    orderId: orderId,
+                    paymentMethodData: paymentData.paymentMethodData
+                })
+                .then(function(confirmResult) {
+                    console.log('Confirm result:', confirmResult);
                     
-                    // Create order in PayPal
-                    return fetch('/create-google-pay-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            product_id: productId,
-                            customer_name: customerData.name,
-                            customer_email: customerData.email,
-                            customer_phone: customerData.phone,
-                            customer_address: customerData.address
+                    if (confirmResult.status === 'APPROVED') {
+                        // Capture the payment
+                        return fetch('/capture-google-pay-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ order_id: orderId })
                         })
-                    })
-                    .then(function(response) { return response.json(); })
-                    .then(function(orderData) {
-                        if (orderData.error) {
-                            throw new Error(orderData.error);
-                        }
-                        
-                        console.log('✅ Google Pay order created:', orderData.order_id);
-                        
-                        // Confirm order with PayPal
-                        var googlepay = paypal.Googlepay();
-                        
-                        return googlepay.confirmOrder({
-                            orderId: orderData.order_id,
-                            paymentMethodData: paymentData.paymentMethodData
-                        })
-                        .then(function(confirmResult) {
-                            console.log('Confirm result:', confirmResult);
-                            
-                            if (confirmResult.status === 'APPROVED') {
-                                // Capture the payment
+                        .then(function(response) { return response.json(); })
+                        .then(function(captureResult) {
+                            if (captureResult.success) {
+                                console.log('✅ Google Pay payment captured!');
+                                window.location.href = '/orders';
+                            } else {
+                                throw new Error(captureResult.error || 'Capture failed');
+                            }
+                        });
+                    } else if (confirmResult.status === 'PAYER_ACTION_REQUIRED') {
+                        console.log('🔄 3DS authentication required...');
+                        return googlepay.initiatePayerAction({ orderId: orderId })
+                            .then(function() {
+                                console.log('✅ 3DS authentication completed');
                                 return fetch('/capture-google-pay-order', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ order_id: orderData.order_id })
+                                    body: JSON.stringify({ order_id: orderId })
                                 })
                                 .then(function(response) { return response.json(); })
                                 .then(function(captureResult) {
                                     if (captureResult.success) {
-                                        console.log('✅ Google Pay payment captured!');
+                                        console.log('✅ Google Pay payment captured after 3DS!');
                                         window.location.href = '/orders';
                                     } else {
-                                        throw new Error(captureResult.error || 'Capture failed');
+                                        throw new Error(captureResult.error || 'Capture failed after 3DS');
                                     }
                                 });
-                            } else if (confirmResult.status === 'PAYER_ACTION_REQUIRED') {
-                                // Handle 3DS authentication
-                                console.log('🔄 3DS authentication required...');
-                                return googlepay.initiatePayerAction({ orderId: orderData.order_id })
-                                    .then(function() {
-                                        console.log('✅ 3DS authentication completed');
-                                        // Capture after 3DS
-                                        return fetch('/capture-google-pay-order', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ order_id: orderData.order_id })
-                                        })
-                                        .then(function(response) { return response.json(); })
-                                        .then(function(captureResult) {
-                                            if (captureResult.success) {
-                                                console.log('✅ Google Pay payment captured after 3DS!');
-                                                window.location.href = '/orders';
-                                            } else {
-                                                throw new Error(captureResult.error || 'Capture failed after 3DS');
-                                            }
-                                        });
-                                    });
-                            } else {
-                                throw new Error('Order not approved: ' + confirmResult.status);
-                            }
-                        });
-                    });
-                })
-                .catch(function(error) {
-                    console.error('Google Pay error:', error);
-                    alert('Error with Google Pay: ' + error.message);
-                    hideLoading();
+                            });
+                    } else {
+                        throw new Error('Order not approved: ' + confirmResult.status);
+                    }
                 });
-        }
+            });
+        })
+        .catch(function(error) {
+            console.error('Google Pay error:', error);
+            alert('Error with Google Pay: ' + (error.message || 'Unknown error'));
+            hideLoading();
+        });
+}
 
         // ============================================
         // RETRY GOOGLE PAY SETUP IF SDK NOT LOADED

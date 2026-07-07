@@ -6,7 +6,7 @@
     <title>Checkout - Mecha Toys</title>
     <link rel="stylesheet" href="/styles.css">
     
-    <!-- PAYPAL SDK - Cargar el SDK de PayPal -->
+    <!-- PAYPAL SDK -->
     <script 
         src="https://www.paypal.com/sdk/js?client-id=BAAWZKcrT0oNZQvjebVNxzIPmz4qvEDIlP19-ZRoC6tz-9sx3WKXuyT-DdsuG4c8w_R7Cdk88tp5ybH_G0&components=hosted-buttons&disable-funding=venmo&currency=EUR">
     </script>
@@ -188,6 +188,11 @@
             max-width: 400px;
         }
 
+        /* Ocultar el botón de submit del formulario que no usamos */
+        .hidden-submit {
+            display: none !important;
+        }
+
         .security-badges {
             display: flex;
             justify-content: center;
@@ -224,7 +229,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Loading overlay para el botón */
         .paypal-loading {
             display: flex;
             justify-content: center;
@@ -308,7 +312,7 @@
             <p><small>Pay with your PayPal account or credit/debit card.</small></p>
         </div>
 
-        <!-- FORMULARIO DEL CLIENTE -->
+        <!-- FORMULARIO DEL CLIENTE - SIN BOTÓN DE ENVÍO -->
         <form id="order-form" action="/checkout/{{ product.id }}" method="POST">
             <input type="hidden" name="product_id" value="{{ product.id }}">
             
@@ -332,9 +336,8 @@
                 <textarea id="address" name="address" required placeholder="Street, number, city, postal code, country"></textarea>
             </div>
 
-            <!-- ⚠️ BOTÓN DE PAYPAL HOSTED BUTTON - NO MODIFICAR ⚠️ -->
+            <!-- ✅ BOTÓN DE PAYPAL - ESTE ES EL ÚNICO BOTÓN QUE DEBE ESTAR -->
             <div class="btn-paypal-container">
-                <!-- Contenedor donde se renderizará el botón de PayPal -->
                 <div id="paypal-container-NCN392GYEKDK2">
                     <div class="paypal-loading">
                         <span class="spinner"></span> Loading PayPal...
@@ -352,9 +355,10 @@
     </div>
 
     <script>
-        // Guardar datos del cliente antes de ir a PayPal
+        // Guardar datos del cliente en localStorage cuando se envía el formulario
+        // El formulario se envía automáticamente cuando el cliente hace clic en el botón de PayPal
         document.getElementById('order-form').addEventListener('submit', function(e) {
-            // Guardar en localStorage como respaldo
+            // Guardar en localStorage
             const customerData = {
                 name: document.getElementById('name').value,
                 email: document.getElementById('email').value,
@@ -382,10 +386,7 @@
         });
 
         // ⚠️ RENDERIZAR EL BOTÓN DE PAYPAL ⚠️
-        // Este código es el que te dio PayPal - NO MODIFICAR
-        // Se ejecuta después de cargar la página
         document.addEventListener('DOMContentLoaded', function() {
-            // Verificar que el SDK de PayPal está cargado
             if (typeof paypal !== 'undefined') {
                 try {
                     paypal.HostedButtons({
@@ -397,19 +398,12 @@
                         '<p style="color:#e17055;">Error loading PayPal. Please try again.</p>';
                 }
             } else {
-                // Si el SDK no está cargado, mostrar mensaje
                 document.getElementById('paypal-container-NCN392GYEKDK2').innerHTML = 
                     '<p style="color:#e17055;">PayPal SDK not loaded. Please refresh the page.</p>';
             }
         });
-    </script>
 
-    <!-- ⚠️ CÓDIGO DE PAYPAL PARA RENDERIZAR EL BOTÓN ⚠️ -->
-    <!-- Este script también puede ir aquí si prefieres -->
-    <script>
-        // Backup: Si el script anterior no funcionó, este intenta renderizar
-        // El código de PayPal dice que se ejecute después de cargar el SDK
-        // Pero lo ponemos aquí como respaldo
+        // Backup render
         if (typeof paypal !== 'undefined') {
             paypal.HostedButtons({
                 hostedButtonId: "NCN392GYEKDK2",

@@ -6,11 +6,11 @@
     <title>Checkout - Mecha Toys</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
     
-    <!-- PayPal SDK - SOLO applepay -->
-    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&currency=EUR&components=applepay&intent=capture">
+    <!-- PayPal SDK with Apple Pay and Google Pay -->
+    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&currency=EUR&components=applepay,googlepay&intent=capture">
     </script>
     
-    <!-- Apple Pay JS SDK (NECESARIO) -->
+    <!-- Apple Pay JS SDK -->
     <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js">
     </script>
     
@@ -118,6 +118,21 @@
             height: 50px;
         }
 
+        #googlepay-container {
+            width: 100%;
+            min-height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #googlepay-button {
+            width: 100%;
+            max-width: 400px;
+            height: 50px;
+            border-radius: 12px;
+        }
+
         .paypal-btn-wrapper { margin-top: 10px; }
 
         .paypal-btn-wrapper .btn-paypal {
@@ -193,7 +208,7 @@
         .divider::before { margin-right: 15px; }
         .divider::after { margin-left: 15px; }
 
-        #applepay-message {
+        .payment-message {
             text-align: center;
             color: #b2bec3;
             font-size: 0.9rem;
@@ -247,9 +262,15 @@
                 <span class="label">💳 Payment Methods</span>
                 
                 <div class="payment-buttons">
-                    <!-- APPLE PAY BUTTON - SEGÚN DOCUMENTACIÓN -->
+                    <!-- APPLE PAY -->
                     <div id="applepay-container">
-                        <div id="applepay-message">🍎 Checking Apple Pay availability...</div>
+                        <div class="payment-message">🍎 Checking Apple Pay...</div>
+                    </div>
+
+                    <!-- GOOGLE PAY -->
+                    <div id="googlepay-container">
+                        <div id="googlepay-button"></div>
+                        <div class="payment-message" id="googlepay-message">🤖 Checking Google Pay...</div>
                     </div>
 
                     <div class="divider">or pay with PayPal</div>
@@ -287,11 +308,11 @@
         var productPrice = parseFloat("{{ product.price }}");
         var clientId = "{{ client_id }}";
 
-        console.log('=== APPLE PAY INTEGRATION ===');
+        console.log('=== CHECKOUT LOADED ===');
         console.log('Product:', productName, '€' + productPrice);
 
         // ============================================
-        // FUNCIONES DE CLIENTE
+        // GET CUSTOMER DATA
         // ============================================
         function getCustomerData() {
             var name = document.getElementById('name').value.trim();
@@ -316,118 +337,42 @@
         }
 
         // ============================================
-        // 1. CREAR PEDIDO EN PAYPAL (API)
-        // ============================================
-        async function createPayPalOrder() {
-            var customerData = getCustomerData();
-            if (!customerData) return null;
-            
-            try {
-                showLoading();
-                
-                var response = await fetch('/create-apple-pay-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        product_id: productId,
-                        customer_name: customerData.name,
-                        customer_email: customerData.email,
-                        customer_phone: customerData.phone,
-                        customer_address: customerData.address
-                    })
-                });
-                
-                var data = await response.json();
-                
-                if (data.error) {
-                    alert('Error creating order: ' + data.error);
-                    hideLoading();
-                    return null;
-                }
-                
-                console.log('✅ Order created:', data.order_id);
-                hideLoading();
-                return data.order_id;
-                
-            } catch (error) {
-                console.error('Error creating order:', error);
-                alert('Error creating order. Please try again.');
-                hideLoading();
-                return null;
-            }
-        }
-
-        // ============================================
-        // 2. CAPTURAR PEDIDO EN PAYPAL (API)
-        // ============================================
-        async function capturePayPalOrder(orderId) {
-            try {
-                var response = await fetch('/capture-apple-pay-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ order_id: orderId })
-                });
-                
-                var data = await response.json();
-                
-                if (data.success) {
-                    console.log('✅ Payment captured!');
-                    window.location.href = '/orders';
-                } else {
-                    alert('Error processing payment: ' + (data.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error capturing order:', error);
-                alert('Error processing payment. Please try again.');
-            }
-        }
-
-        // ============================================
-        // 3. CONFIGURAR APPLE PAY - SEGÚN DOCUMENTACIÓN
+        // APPLE PAY SETUP
         // ============================================
         function setupApplePay() {
             var container = document.getElementById('applepay-container');
-            var message = document.getElementById('applepay-message');
+            var message = container.querySelector('.payment-message');
             
             console.log('=== SETUP APPLE PAY ===');
             
-            // 1. Verificar que el SDK de PayPal está cargado
+            // Check if PayPal SDK is loaded
             if (typeof paypal === 'undefined') {
-                console.error('❌ PayPal SDK not loaded');
-                message.textContent = '❌ PayPal SDK not loaded';
+                console.log('❌ PayPal SDK not loaded');
+                message.textContent = '🍎 Apple Pay not available';
                 return;
             }
-            console.log('✅ PayPal SDK loaded');
-
-            // 2. Verificar que Apple Pay SDK está cargado
-            if (typeof ApplePaySession === 'undefined') {
-                console.error('❌ Apple Pay SDK not loaded');
-                message.textContent = '❌ Apple Pay not supported in this browser';
+            
+            // Check if Apple Pay is available on this device
+            if (typeof ApplePaySession === 'undefined' || !ApplePaySession.canMakePayments()) {
+                console.log('❌ Apple Pay not available on this device');
+                message.textContent = '🍎 Apple Pay not available';
                 return;
             }
-            console.log('✅ Apple Pay SDK loaded');
-
-            // 3. Verificar si el dispositivo soporta Apple Pay
-            if (!ApplePaySession.canMakePayments()) {
-                console.error('❌ Device cannot make Apple Pay payments');
-                message.textContent = '🍎 Apple Pay not available on this device (no card in Wallet)';
-                return;
-            }
-            console.log('✅ Device can make Apple Pay payments');
-
-            // 4. Crear instancia de Apple Pay y verificar elegibilidad
-            console.log('Checking merchant eligibility...');
+            
+            console.log('✅ Apple Pay is available!');
+            
+            // Create Apple Pay instance
             var applepay = paypal.Applepay();
             
             applepay.config()
-                .then(function(applepayConfig) {
-                    console.log('Apple Pay config:', applepayConfig);
+                .then(function(config) {
+                    console.log('Apple Pay config:', config);
                     
-                    if (applepayConfig.isEligible) {
+                    if (config.isEligible) {
                         console.log('✅ Merchant is eligible for Apple Pay!');
                         message.textContent = '';
                         
-                        // Crear el botón de Apple Pay (HTML nativo de Apple)
+                        // Create Apple Pay button (Apple's native HTML element)
                         var button = document.createElement('apple-pay-button');
                         button.setAttribute('buttonstyle', 'black');
                         button.setAttribute('type', 'buy');
@@ -437,41 +382,43 @@
                         button.style.height = '50px';
                         button.style.borderRadius = '12px';
                         
-                        // Limpiar el contenedor y añadir el botón
                         container.innerHTML = '';
                         container.appendChild(button);
                         
-                        // Evento click del botón
                         button.addEventListener('click', function() {
                             console.log('🍎 Apple Pay button clicked!');
-                            startApplePaySession(applepayConfig);
+                            startApplePaySession(config);
                         });
                         
                     } else {
-                        console.warn('⚠️ Merchant not eligible for Apple Pay');
-                        message.textContent = '🍎 Apple Pay not available for this merchant';
+                        console.log('❌ Merchant not eligible for Apple Pay');
+                        message.textContent = '🍎 Apple Pay not available';
                     }
                 })
                 .catch(function(error) {
-                    console.error('❌ Error fetching Apple Pay config:', error);
-                    message.textContent = '❌ Error checking Apple Pay availability';
+                    console.error('Apple Pay config error:', error);
+                    message.textContent = '🍎 Apple Pay error';
                 });
         }
 
         // ============================================
-        // 4. INICIAR SESIÓN DE APPLE PAY
+        // START APPLE PAY SESSION
         // ============================================
-        function startApplePaySession(applepayConfig) {
+        function startApplePaySession(config) {
             console.log('=== START APPLE PAY SESSION ===');
             
+            // Check if customer data is filled
             var customerData = getCustomerData();
-            if (!customerData) return;
+            if (!customerData) {
+                alert('Please fill in your shipping details first.');
+                return;
+            }
             
-            // Crear el Payment Request para Apple Pay
+            // Create payment request for Apple Pay
             var paymentRequest = {
-                countryCode: applepayConfig.countryCode || 'ES',
-                merchantCapabilities: applepayConfig.merchantCapabilities || ['supports3DS'],
-                supportedNetworks: applepayConfig.supportedNetworks || ['visa', 'mastercard', 'amex', 'discover'],
+                countryCode: config.countryCode || 'ES',
+                merchantCapabilities: config.merchantCapabilities || ['supports3DS'],
+                supportedNetworks: config.supportedNetworks || ['visa', 'mastercard', 'amex', 'discover'],
                 currencyCode: 'EUR',
                 requiredShippingContactFields: ['name', 'phone', 'email', 'postalAddress'],
                 requiredBillingContactFields: ['postalAddress'],
@@ -484,12 +431,10 @@
             
             console.log('Payment Request:', paymentRequest);
             
-            // Crear la sesión de Apple Pay
+            // Create Apple Pay session
             var session = new ApplePaySession(4, paymentRequest);
             
-            // ============================================
-            // 5. CALLBACK: onvalidatemerchant
-            // ============================================
+            // Handle merchant validation
             session.onvalidatemerchant = function(event) {
                 console.log('🔐 Validating merchant...');
                 var applepay = paypal.Applepay();
@@ -498,32 +443,48 @@
                     validationUrl: event.validationURL,
                     displayName: 'Mecha Toys'
                 })
-                .then(function(validateResult) {
+                .then(function(result) {
                     console.log('✅ Merchant validated!');
-                    session.completeMerchantValidation(validateResult.merchantSession);
+                    session.completeMerchantValidation(result.merchantSession);
                 })
-                .catch(function(validateError) {
-                    console.error('❌ Merchant validation failed:', validateError);
+                .catch(function(error) {
+                    console.error('Merchant validation failed:', error);
                     session.abort();
                 });
             };
             
-            // ============================================
-            // 6. CALLBACK: onpaymentauthorized
-            // ============================================
+            // Handle payment authorization
             session.onpaymentauthorized = function(event) {
                 console.log('💰 Payment authorized by user');
-                console.log('Billing:', event.payment.billingContact);
                 console.log('Shipping:', event.payment.shippingContact);
                 
-                // 1. Crear el pedido en PayPal (o usar uno existente)
-                createPayPalOrder().then(function(orderId) {
-                    if (!orderId) {
+                // Create order in PayPal
+                showLoading();
+                
+                fetch('/create-apple-pay-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        customer_name: customerData.name,
+                        customer_email: customerData.email,
+                        customer_phone: customerData.phone,
+                        customer_address: customerData.address
+                    })
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.error) {
+                        console.error('Order creation failed:', data.error);
                         session.completePayment(ApplePaySession.STATUS_FAILURE);
+                        hideLoading();
                         return;
                     }
                     
-                    // 2. Confirmar el pedido con el token de Apple Pay
+                    var orderId = data.order_id;
+                    console.log('✅ Order created:', orderId);
+                    
+                    // Confirm order with Apple Pay token
                     var applepay = paypal.Applepay();
                     
                     applepay.confirmOrder({
@@ -532,35 +493,171 @@
                         billingContact: event.payment.billingContact
                     })
                     .then(function(confirmResult) {
-                        console.log('✅ Order confirmed with Apple Pay token:', confirmResult);
-                        
-                        // 3. Completar el pago en Apple Pay
+                        console.log('✅ Order confirmed with Apple Pay token');
                         session.completePayment(ApplePaySession.STATUS_SUCCESS);
                         
-                        // 4. Capturar el pago en PayPal
-                        capturePayPalOrder(orderId);
+                        // Capture the payment
+                        return fetch('/capture-apple-pay-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ order_id: orderId })
+                        });
                     })
-                    .catch(function(confirmError) {
-                        console.error('❌ Order confirmation failed:', confirmError);
+                    .then(function(response) { return response.json(); })
+                    .then(function(captureData) {
+                        if (captureData.success) {
+                            console.log('✅ Payment captured successfully!');
+                            window.location.href = '/orders';
+                        } else {
+                            console.error('Payment capture failed:', captureData.error);
+                            alert('Payment was authorized but capture failed. Please contact support.');
+                        }
+                        hideLoading();
+                    })
+                    .catch(function(error) {
+                        console.error('Confirmation failed:', error);
                         session.completePayment(ApplePaySession.STATUS_FAILURE);
+                        hideLoading();
                     });
+                })
+                .catch(function(error) {
+                    console.error('Error:', error);
+                    session.completePayment(ApplePaySession.STATUS_FAILURE);
+                    hideLoading();
                 });
             };
             
-            // ============================================
-            // 7. INICIAR LA SESIÓN
-            // ============================================
+            // Start the session
             session.begin();
             console.log('✅ Apple Pay session started!');
         }
 
         // ============================================
-        // 8. INICIALIZAR CUANDO LA PÁGINA ESTÉ LISTA
+        // GOOGLE PAY SETUP
+        // ============================================
+        function setupGooglePay() {
+            var container = document.getElementById('googlepay-container');
+            var message = document.getElementById('googlepay-message');
+            var buttonContainer = document.getElementById('googlepay-button');
+            
+            console.log('=== SETUP GOOGLE PAY ===');
+            
+            // Check if PayPal SDK is loaded
+            if (typeof paypal === 'undefined') {
+                console.log('❌ PayPal SDK not loaded');
+                message.textContent = '🤖 Google Pay not available';
+                buttonContainer.style.display = 'none';
+                return;
+            }
+            
+            // Check if Google Pay is available in the SDK
+            if (typeof paypal.Googlepay === 'undefined') {
+                console.log('❌ Google Pay not available in SDK');
+                message.textContent = '🤖 Google Pay not available';
+                buttonContainer.style.display = 'none';
+                return;
+            }
+            
+            console.log('✅ Google Pay is available!');
+            
+            // Render Google Pay button
+            paypal.Googlepay({
+                style: {
+                    type: 'pay',
+                    color: 'black',
+                    language: 'en'
+                },
+                
+                createOrder: function() {
+                    console.log('🤖 Google Pay: Creating order...');
+                    return new Promise(function(resolve, reject) {
+                        var customerData = getCustomerData();
+                        if (!customerData) {
+                            reject(new Error('Please fill in shipping details'));
+                            return;
+                        }
+                        
+                        showLoading();
+                        
+                        fetch('/create-google-pay-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                product_id: productId,
+                                customer_name: customerData.name,
+                                customer_email: customerData.email,
+                                customer_phone: customerData.phone,
+                                customer_address: customerData.address
+                            })
+                        })
+                        .then(function(response) { return response.json(); })
+                        .then(function(data) {
+                            if (data.error) {
+                                reject(new Error(data.error));
+                                return;
+                            }
+                            console.log('✅ Google Pay order created:', data.order_id);
+                            hideLoading();
+                            resolve(data.order_id);
+                        })
+                        .catch(function(error) {
+                            console.error('Google Pay order creation failed:', error);
+                            hideLoading();
+                            reject(error);
+                        });
+                    });
+                },
+                
+                onApprove: function(data) {
+                    console.log('🤖 Google Pay: Payment approved', data);
+                    
+                    fetch('/capture-google-pay-order', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order_id: data.orderID })
+                    })
+                    .then(function(response) { return response.json(); })
+                    .then(function(result) {
+                        if (result.success) {
+                            console.log('✅ Google Pay payment captured!');
+                            window.location.href = '/orders';
+                        } else {
+                            alert('Payment failed: ' + (result.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Google Pay capture failed:', error);
+                        alert('Payment failed. Please try again.');
+                    });
+                },
+                
+                onError: function(err) {
+                    console.error('❌ Google Pay Error:', err);
+                    alert('Error with Google Pay. Please try again.');
+                    hideLoading();
+                }
+                
+            }).render('#googlepay-button').then(function() {
+                console.log('✅ Google Pay rendered!');
+                message.textContent = '';
+            }).catch(function(err) {
+                console.log('Google Pay render error:', err);
+                message.textContent = '🤖 Google Pay not available';
+                buttonContainer.style.display = 'none';
+            });
+        }
+
+        // ============================================
+        // INIT PAGE
         // ============================================
         function initPage() {
             console.log('=== PAGE LOADED ===');
-            // Esperar a que el SDK de PayPal se cargue completamente
-            setTimeout(setupApplePay, 2000);
+            
+            // Wait for PayPal SDK to load
+            setTimeout(function() {
+                setupApplePay();
+                setupGooglePay();
+            }, 2000);
         }
 
         if (document.readyState === 'complete') {
@@ -570,7 +667,7 @@
         }
 
         // ============================================
-        // 9. VALIDACIÓN DEL FORMULARIO PAYPAL
+        // FORM VALIDATION
         // ============================================
         var form = document.getElementById('checkout-form');
         if (form) {

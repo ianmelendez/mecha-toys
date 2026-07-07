@@ -7,8 +7,8 @@ from datetime import datetime
 import secrets
 import os
 import uuid
-import paypalrestsdk  # ← PARA APPLE PAY
-import requests  # ← PARA GOOGLE PAY
+import paypalrestsdk
+import requests
 import base64
 
 app = Flask(__name__, 
@@ -27,47 +27,51 @@ PAYPAL_EMAIL = "mecchachameleonstore@gmail.com"
 PAYPAL_SANDBOX = False
 PAYPAL_URL = "https://www.paypal.com/cgi-bin/webscr"
 
-# ===== PAYPAL API CONFIGURATION (para Apple Pay Y Google Pay) =====
-PAYPAL_CLIENT_ID = "ARlmoa47tt-GIkbslRohxq74lrNmv7kdpo6TTk4WYzS4DkZ5VqAk1CjVDzoaCHOHeFYcy_UQdWw2OqKj"
+# ===== PAYPAL API CONFIGURATION =====
+PAYPAL_CLIENT_ID = "AUiBFA6AJT68zsLBSuLGJNGZEmKuBkLH7jKvqeWeMAoRyPz8M4zl5t9hvq_b1FNzOsAuyIcAqZTY14sQ"
 PAYPAL_CLIENT_SECRET = "EDQ2PE-NJO4IQoivFo9_EiAiKm-LH9B5CKWAxnwAadambd5KbxaVsY9Gh3_6axdlJbDtOF84p2fqBJa4"
-PAYPAL_MODE = "live"  # "sandbox" for testing
+PAYPAL_MODE = "live"
 
-# ===== CONFIGURACIÓN PARA APPLE PAY (usando paypalrestsdk) =====
+# ===== PAYPAL SDK CONFIG (APPLE PAY) =====
 paypalrestsdk.configure({
     "mode": PAYPAL_MODE,
     "client_id": PAYPAL_CLIENT_ID,
     "client_secret": PAYPAL_CLIENT_SECRET
 })
 
-# ===== CONFIGURACIÓN PARA GOOGLE PAY (API REST directa) =====
+# ===== PAYPAL REST API CONFIG (GOOGLE PAY) =====
 if PAYPAL_MODE == "sandbox":
     PAYPAL_API_URL = "https://api-m.sandbox.paypal.com"
 else:
     PAYPAL_API_URL = "https://api-m.paypal.com"
 
-# ===== GET PAYPAL ACCESS TOKEN (para Google Pay) =====
+# ===== GET PAYPAL ACCESS TOKEN =====
 def get_paypal_access_token():
     """Get PayPal OAuth access token for REST API"""
-    auth = base64.b64encode(f"{PAYPAL_CLIENT_ID}:{PAYPAL_CLIENT_SECRET}".encode()).decode()
-    
-    response = requests.post(
-        f"{PAYPAL_API_URL}/v1/oauth2/token",
-        headers={
-            "Authorization": f"Basic {auth}",
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        data="grant_type=client_credentials"
-    )
-    
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    else:
-        print(f"❌ Error getting PayPal token: {response.text}")
+    try:
+        auth = base64.b64encode(f"{PAYPAL_CLIENT_ID}:{PAYPAL_CLIENT_SECRET}".encode()).decode()
+        
+        response = requests.post(
+            f"{PAYPAL_API_URL}/v1/oauth2/token",
+            headers={
+                "Authorization": f"Basic {auth}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            data="grant_type=client_credentials"
+        )
+        
+        if response.status_code == 200:
+            return response.json()["access_token"]
+        else:
+            print(f"❌ Error getting PayPal token: {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ Exception getting token: {e}")
         return None
 
-# ===== FUNCIONES PARA GOOGLE PAY (API REST directa) =====
+# ===== REST API FUNCTIONS FOR GOOGLE PAY =====
 def create_paypal_order_rest(amount, description):
-    """Create a PayPal order using REST API (para Google Pay)"""
+    """Create a PayPal order using REST API for Google Pay"""
     access_token = get_paypal_access_token()
     if not access_token:
         return None
@@ -80,6 +84,9 @@ def create_paypal_order_rest(amount, description):
             "amount": {
                 "currency_code": "EUR",
                 "value": str(amount)
+            },
+            "payee": {
+                "email_address": PAYPAL_EMAIL
             }
         }],
         "application_context": {
@@ -105,7 +112,7 @@ def create_paypal_order_rest(amount, description):
         return None
 
 def capture_paypal_order_rest(order_id):
-    """Capture a PayPal order using REST API (para Google Pay)"""
+    """Capture a PayPal order using REST API for Google Pay"""
     access_token = get_paypal_access_token()
     if not access_token:
         return None
@@ -154,7 +161,6 @@ def serve_images(filename):
 # ===== APPLE PAY DOMAIN VERIFICATION =====
 @app.route('/.well-known/apple-developer-merchantid-domain-association')
 def serve_apple_pay():
-    """Serve Apple Pay domain verification file"""
     try:
         return send_from_directory('.', 'apple-developer-merchantid-domain-association')
     except Exception as e:
@@ -163,9 +169,6 @@ def serve_apple_pay():
 
 # ===== SEND EMAIL FUNCTION =====
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
-    """Send order details to YOU and confirmation to customer"""
-    
-    # 1. Email to YOU
     you_subject = f"🛒 NEW ORDER - {product['name']}"
     you_body = f"""
 🎉 NEW ORDER RECEIVED!
@@ -197,7 +200,6 @@ ALIEXPRESS LINK:
     
     send_email(YOUR_EMAIL, you_subject, you_body)
     
-    # 2. Confirmation to CUSTOMER
     customer_subject = f"✅ Order Confirmation - Mecha Toys"
     customer_body = f"""
 Hello {customer_name},
@@ -226,7 +228,6 @@ Thank you for choosing Mecha Toys! 🦎
     send_email(customer_email, customer_subject, customer_body)
 
 def send_email(to_email, subject, body):
-    """Actually sends the email using SMTP"""
     try:
         msg = MIMEMultipart()
         msg['From'] = YOUR_EMAIL
@@ -259,7 +260,6 @@ def home():
 
 @app.route('/checkout/<product_id>', methods=['GET'])
 def checkout(product_id):
-    """Show checkout with PayPal, Apple Pay and Google Pay"""
     product = PRODUCTS.get(product_id)
     if not product:
         return "Product not found", 404
@@ -269,7 +269,6 @@ def checkout(product_id):
 
 @app.route('/checkout/<product_id>', methods=['POST'])
 def process_checkout(product_id):
-    """Process checkout (PayPal Standard)"""
     product = PRODUCTS.get(product_id)
     if not product:
         return "Product not found", 404
@@ -294,7 +293,6 @@ def process_checkout(product_id):
 
 @app.route('/paypal-redirect/<product_id>')
 def paypal_redirect(product_id):
-    """Redirect to PayPal for standard payment"""
     product = PRODUCTS.get(product_id)
     if not product:
         return "Product not found", 404
@@ -403,12 +401,11 @@ def paypal_redirect(product_id):
     return paypal_form
 
 # ============================================================
-# ===== APPLE PAY ROUTES (usando paypalrestsdk) =====
+# ===== APPLE PAY ROUTES =====
 # ============================================================
 
 @app.route('/create-apple-pay-order', methods=['POST'])
 def create_apple_pay_order():
-    """Create an order for Apple Pay usando paypalrestsdk"""
     try:
         data = request.json
         product_id = data.get('product_id')
@@ -432,7 +429,6 @@ def create_apple_pay_order():
             'product_id': product_id
         }
         
-        # Usar paypalrestsdk para Apple Pay
         order = paypalrestsdk.Order({
             "intent": "CAPTURE",
             "purchase_units": [{
@@ -465,7 +461,6 @@ def create_apple_pay_order():
 
 @app.route('/capture-apple-pay-order', methods=['POST'])
 def capture_apple_pay_order():
-    """Capture the payment after Apple Pay usando paypalrestsdk"""
     try:
         data = request.json
         order_id = data.get('order_id')
@@ -537,12 +532,11 @@ def capture_apple_pay_order():
         return jsonify({'error': str(e)}), 500
 
 # ============================================================
-# ===== GOOGLE PAY ROUTES (usando API REST directa) =====
+# ===== GOOGLE PAY ROUTES =====
 # ============================================================
 
 @app.route('/create-google-pay-order', methods=['POST'])
 def create_google_pay_order():
-    """Create an order for Google Pay usando API REST directa"""
     try:
         data = request.json
         print(f"📥 Google Pay create order request: {data}")
@@ -568,7 +562,6 @@ def create_google_pay_order():
             'product_id': product_id
         }
         
-        # Usar API REST directa para Google Pay
         order = create_paypal_order_rest(product['price'], product['name'])
         
         if order and 'id' in order:
@@ -587,7 +580,6 @@ def create_google_pay_order():
 
 @app.route('/capture-google-pay-order', methods=['POST'])
 def capture_google_pay_order():
-    """Capture the payment after Google Pay usando API REST directa"""
     try:
         data = request.json
         print(f"📥 Google Pay capture request: {data}")
@@ -597,7 +589,6 @@ def capture_google_pay_order():
         if not order_id:
             return jsonify({'error': 'Order ID required'}), 400
         
-        # Usar API REST directa para Google Pay
         capture_result = capture_paypal_order_rest(order_id)
         print(f"🔍 Capture result: {capture_result}")
         
@@ -671,7 +662,6 @@ def capture_google_pay_order():
 
 @app.route('/place-order')
 def place_order():
-    """Process order after PayPal Standard payment"""
     product_id = request.args.get('product_id')
     customer_name = request.args.get('name')
     customer_email = request.args.get('email')
@@ -733,12 +723,10 @@ def place_order():
 
 @app.route('/payment-success')
 def payment_success():
-    """Success page for Apple Pay / Google Pay"""
     return redirect('/orders')
 
 @app.route('/payment-cancel')
 def payment_cancel():
-    """Cancel page"""
     return """
     <!DOCTYPE html>
     <html>

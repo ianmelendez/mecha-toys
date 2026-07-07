@@ -1,166 +1,314 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout - Mecha Toys</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
             min-height: 100vh;
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            padding: 20px;
         }
-        
+
         .checkout-container {
-            max-width: 600px;
-            width: 100%;
+            max-width: 800px;
+            margin: 40px auto;
             background: white;
-            border-radius: 28px;
-            padding: 48px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            padding: 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+            animation: fadeInUp 0.6s ease forwards;
         }
-        
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .checkout-header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
         }
-        
+
         .checkout-header h1 {
-            font-size: 2rem;
-            font-weight: 800;
+            font-size: 2.4rem;
             color: #1a1a2e;
+            font-weight: 800;
             margin-bottom: 8px;
         }
-        
+
         .checkout-header p {
             color: #636e72;
+            font-size: 1.05rem;
         }
-        
-        .product-summary {
-            background: #f8f9fa;
+
+        .checkout-header .back-link {
+            display: inline-block;
+            margin-top: 12px;
+            color: #6c5ce7;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .checkout-header .back-link:hover {
+            color: #5f3dc4;
+            text-decoration: underline;
+        }
+
+        .order-summary {
+            background: linear-gradient(135deg, #f8f9fa, #f0f2f5);
+            padding: 24px 30px;
             border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 32px;
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+        }
+
+        .order-summary h3 {
+            font-size: 1.1rem;
+            color: #1a1a2e;
+            margin-bottom: 12px;
+        }
+
+        .order-summary .summary-row {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            padding: 8px 0;
+            color: #636e72;
         }
-        
-        .product-summary .name {
+
+        .order-summary .summary-row.total {
+            border-top: 2px solid #dee2e6;
+            margin-top: 10px;
+            padding-top: 14px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #1a1a2e;
+        }
+
+        .order-summary .summary-row .price-tag {
+            color: #e17055;
+            font-weight: 700;
+        }
+
+        .order-summary .product-name {
             font-weight: 600;
             color: #1a1a2e;
         }
-        
-        .product-summary .price {
-            font-weight: 700;
-            color: #e17055;
-            font-size: 1.2rem;
-        }
-        
+
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
-        
+
         .form-group label {
             display: block;
             font-weight: 600;
-            color: #1a1a2e;
             margin-bottom: 6px;
-            font-size: 0.9rem;
+            color: #1a1a2e;
+            font-size: 0.95rem;
         }
-        
+
+        .form-group label .required {
+            color: #e17055;
+        }
+
         .form-group input,
         .form-group textarea {
             width: 100%;
             padding: 14px 16px;
-            border: 2px solid #e9ecef;
+            border: 2px solid #e0e0e0;
             border-radius: 12px;
             font-size: 1rem;
+            transition: all 0.3s ease;
             font-family: inherit;
-            transition: border-color 0.3s ease;
+            background: white;
         }
-        
+
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #6c5ce7;
+            border-color: #0070ba;
+            box-shadow: 0 0 0 4px rgba(0, 112, 186, 0.1);
         }
-        
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #adb5bd;
+        }
+
         .form-group textarea {
+            height: 100px;
             resize: vertical;
-            min-height: 80px;
         }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+
+        .paypal-info {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #0070ba;
         }
-        
-        .submit-btn {
-            width: 100%;
-            padding: 18px;
-            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            font-size: 1.2rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 6px 25px rgba(108, 92, 231, 0.35);
-            margin-top: 12px;
+
+        .paypal-info p {
+            margin: 0;
+            color: #1a1a2e;
         }
-        
-        .submit-btn:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 40px rgba(108, 92, 231, 0.4);
-        }
-        
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
+
+        .paypal-info p small {
             color: #636e72;
-            text-decoration: none;
-            font-weight: 500;
         }
-        
-        .back-link:hover {
-            color: #6c5ce7;
+
+        .btn-paypal-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
-        
-        .trust-badges {
+
+        .btn-paypal-container form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .btn-paypal-container .pp-NCN392GYEKDK2 {
+            text-align: center;
+            border: none;
+            border-radius: 0.25rem;
+            min-width: 11.625rem;
+            padding: 0 2rem;
+            height: 2.625rem;
+            font-weight: bold;
+            background-color: #FFD140;
+            color: #000000;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 1.25rem;
+            cursor: pointer;
+            width: 100%;
+            max-width: 400px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-paypal-container .pp-NCN392GYEKDK2:hover {
+            background-color: #f5c800;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
+        }
+
+        .btn-paypal-container .paypal-badges {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-paypal-container .paypal-badges img {
+            height: 20px;
+        }
+
+        .btn-paypal-container .paypal-badges .paypal-credit {
+            font-size: 0.75rem;
+            color: #636e72;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-paypal-container .paypal-badges .paypal-credit img {
+            height: 0.875rem;
+            vertical-align: middle;
+        }
+
+        .security-badges {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 24px;
             margin-top: 24px;
-            font-size: 0.85rem;
-            color: #636e72;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
+            flex-wrap: wrap;
         }
-        
-        @media (max-width: 600px) {
+
+        .security-badges span {
+            color: #636e72;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #0070ba;
+            animation: spin 0.8s ease infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
             .checkout-container {
-                padding: 24px;
+                padding: 30px 20px;
+                margin: 20px auto;
             }
-            
-            .form-row {
-                grid-template-columns: 1fr;
+            .checkout-header h1 {
+                font-size: 1.8rem;
             }
-            
+            .order-summary {
+                padding: 18px 20px;
+            }
+            .security-badges {
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .checkout-container {
+                padding: 20px 16px;
+                border-radius: 16px;
+            }
             .checkout-header h1 {
                 font-size: 1.5rem;
+            }
+            .form-group input,
+            .form-group textarea {
+                padding: 12px 14px;
+                font-size: 0.95rem;
+            }
+            .order-summary .summary-row.total {
+                font-size: 1rem;
+            }
+            .btn-paypal-container .pp-NCN392GYEKDK2 {
+                font-size: 0.95rem;
+                padding: 0 1.5rem;
+                height: 2.4rem;
             }
         }
     </style>
@@ -168,58 +316,143 @@
 <body>
     <div class="checkout-container">
         <div class="checkout-header">
-            <h1>🛒 Complete Your Order</h1>
-            <p>Enter your details to place your order</p>
+            <h1>🛒 Secure Checkout</h1>
+            <p>Complete your details and pay with PayPal</p>
+            <a href="/" class="back-link">← Back to Store</a>
         </div>
 
-        <!-- Product Summary -->
-        <div class="product-summary">
-            <span class="name">{{ product.name }}</span>
-            <span class="price">€{{ product.price }}</span>
+        <div class="order-summary">
+            <h3>📦 Order Summary</h3>
+            <div class="summary-row">
+                <span class="product-name">{{ product.name }}</span>
+                <span>€{{ "%.2f"|format(product.price) }}</span>
+            </div>
+            <div class="summary-row">
+                <span>Shipping</span>
+                <span style="color: #00b894;">Free</span>
+            </div>
+            <div class="summary-row total">
+                <span>Total</span>
+                <span class="price-tag">€{{ "%.2f"|format(product.price) }}</span>
+            </div>
         </div>
 
-        <!-- Order Form -->
-        <form action="/place-order" method="POST">
-            <input type="hidden" name="product_id" value="{{ product.id }}" />
+        <div class="paypal-info">
+            <p>🔒 <strong>Secure Payment with PayPal</strong></p>
+            <p><small>Pay with your PayPal account or credit/debit card.</small></p>
+        </div>
 
+        <!-- CUSTOMER FORM + PAYPAL -->
+        <form id="order-form" action="/checkout/{{ product.id }}" method="POST">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            
             <div class="form-group">
-                <label for="name">Full Name *</label>
-                <input type="text" id="name" name="name" required placeholder="John Doe" />
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="email">Email Address *</label>
-                    <input type="email" id="email" name="email" required placeholder="john@example.com" />
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone Number</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+1234567890" />
-                </div>
+                <label for="name">Full Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" required placeholder="Your full name">
             </div>
 
             <div class="form-group">
-                <label for="address">Shipping Address *</label>
-                <textarea id="address" name="address" required placeholder="Street, City, Postal Code, Country"></textarea>
+                <label for="email">Email Address <span class="required">*</span></label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com">
             </div>
 
-            <div style="font-size:0.85rem;color:#636e72;margin-bottom:16px;">
-                <p>🔒 By placing your order, you'll receive a confirmation email.</p>
-                <p>💰 Payment is processed manually - we'll send payment instructions.</p>
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="+34 600 000 000">
             </div>
 
-            <button type="submit" class="submit-btn">
-                🚀 Place Order - €{{ product.price }}
-            </button>
+            <div class="form-group">
+                <label for="address">Shipping Address <span class="required">*</span></label>
+                <textarea id="address" name="address" required placeholder="Street, number, city, postal code, country"></textarea>
+            </div>
+
+            <!-- PAYPAL BUTTON -->
+            <div class="btn-paypal-container">
+                <div>
+                    <style>
+                        .pp-NCN392GYEKDK2 {
+                            text-align: center;
+                            border: none;
+                            border-radius: 0.25rem;
+                            min-width: 11.625rem;
+                            padding: 0 2rem;
+                            height: 2.625rem;
+                            font-weight: bold;
+                            background-color: #FFD140;
+                            color: #000000;
+                            font-family: "Helvetica Neue", Arial, sans-serif;
+                            font-size: 1rem;
+                            line-height: 1.25rem;
+                            cursor: pointer;
+                            width: 100%;
+                            max-width: 400px;
+                            transition: all 0.3s ease;
+                        }
+                        .pp-NCN392GYEKDK2:hover {
+                            background-color: #f5c800;
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
+                        }
+                    </style>
+                    <form action="https://www.paypal.com/ncp/payment/NCN392GYEKDK2" method="post" target="_blank" style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;width:100%;">
+                        <input class="pp-NCN392GYEKDK2" type="submit" value="Buy Now with PayPal" />
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;">
+                            <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" style="height:20px;" />
+                            <section style="font-size: 0.75rem; color: #636e72; display:flex;align-items:center;gap:4px;">
+                                Powered by <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" style="height:0.875rem;vertical-align:middle;"/>
+                            </section>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </form>
 
-        <a href="/" class="back-link">← Back to Store</a>
-
-        <div class="trust-badges">
-            <span>🔒 Secure Connection</span>
+        <div class="security-badges">
+            <span>🔒 SSL Secure</span>
+            <span>💳 Cards Accepted</span>
+            <span>🛡️ PayPal Protection</span>
             <span>📧 Email Confirmation</span>
-            <span>💯 15-Day Guarantee</span>
         </div>
     </div>
+
+    <script>
+        // When form is submitted, save data to localStorage as backup
+        document.getElementById('order-form').addEventListener('submit', function(e) {
+            // Save customer data to localStorage
+            const customerData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value,
+                product_id: document.querySelector('input[name="product_id"]').value
+            };
+            localStorage.setItem('pending_order', JSON.stringify(customerData));
+            
+            // Show loading state on PayPal button
+            const submitBtn = document.querySelector('.pp-NCN392GYEKDK2');
+            if (submitBtn) {
+                submitBtn.value = '⏳ Processing...';
+                submitBtn.disabled = true;
+            }
+            
+            // Form submits normally
+        });
+
+        // Restore saved data if user returns after PayPal
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedData = localStorage.getItem('pending_order');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    if (data.name) document.getElementById('name').value = data.name;
+                    if (data.email) document.getElementById('email').value = data.email;
+                    if (data.phone) document.getElementById('phone').value = data.phone;
+                    if (data.address) document.getElementById('address').value = data.address;
+                } catch(e) {
+                    // Ignore errors
+                }
+            }
+        });
+    </script>
 </body>
 </html>

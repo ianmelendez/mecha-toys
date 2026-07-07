@@ -1,129 +1,131 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Order Placed - Mecha Toys</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido Confirmado - Mecha Toys</title>
+    <link rel="stylesheet" href="/styles.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-            min-height: 100vh;
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
         .success-container {
-            max-width: 500px;
-            width: 100%;
+            max-width: 700px;
+            margin: 60px auto;
             background: white;
-            border-radius: 28px;
-            padding: 48px;
+            padding: 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.08);
             text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            animation: fadeInUp 0.6s ease forwards;
         }
-        
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .success-icon {
             font-size: 4rem;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
-        
-        h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #1a1a2e;
-            margin-bottom: 12px;
+        .success-container h1 {
+            color: #00b894;
+            font-size: 2.2rem;
+            margin-bottom: 15px;
         }
-        
+        .success-container p {
+            color: #636e72;
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
         .order-details {
             background: #f8f9fa;
-            border-radius: 16px;
             padding: 20px;
-            margin: 24px 0;
+            border-radius: 12px;
+            margin: 30px 0;
             text-align: left;
         }
-        
-        .order-details p {
-            color: #636e72;
-            line-height: 1.8;
-            font-size: 0.95rem;
+        .order-details h3 {
+            margin-bottom: 10px;
+            color: #1a1a2e;
         }
-        
+        .order-details p {
+            margin: 8px 0;
+            color: #1a1a2e;
+        }
         .order-details strong {
             color: #1a1a2e;
         }
-        
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
         .btn {
-            display: inline-block;
-            padding: 14px 40px;
-            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
-            color: white;
-            text-decoration: none;
-            border-radius: 14px;
+            padding: 12px 30px;
+            border-radius: 12px;
             font-weight: 600;
+            text-decoration: none;
             transition: all 0.3s ease;
-            box-shadow: 0 6px 25px rgba(108, 92, 231, 0.3);
         }
-        
-        .btn:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 40px rgba(108, 92, 231, 0.4);
+        .btn-primary {
+            background: #0070ba;
+            color: white;
         }
-        
-        .whats-next {
-            margin: 24px 0;
-            text-align: left;
+        .btn-primary:hover {
+            background: #003087;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 112, 186, 0.3);
         }
-        
-        .whats-next h3 {
+        .btn-secondary {
+            background: #f0f0f0;
             color: #1a1a2e;
-            margin-bottom: 12px;
         }
-        
-        .whats-next li {
-            color: #636e72;
-            line-height: 2;
-            list-style: none;
+        .btn-secondary:hover {
+            background: #e0e0e0;
         }
-        
-        .whats-next li::before {
-            content: "✅ ";
+        .email-note {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 12px;
+            border-left: 4px solid #0070ba;
+            margin-top: 20px;
+            color: #1a1a2e;
+        }
+        .email-note strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        @media (max-width: 480px) {
+            .success-container { padding: 30px 20px; }
+            .success-container h1 { font-size: 1.8rem; }
         }
     </style>
 </head>
 <body>
     <div class="success-container">
-        <div class="success-icon">🎉</div>
-        <h1>Order Placed!</h1>
-        <p style="color:#636e72;margin-bottom:12px;">
-            Thank you for your order, <strong>{{ order.customer_name }}</strong>!
-        </p>
-        
+        <div class="success-icon">✅</div>
+        <h1>¡Pedido Confirmado!</h1>
+        <p>Gracias por tu compra. Hemos recibido tu pago correctamente.</p>
+
         <div class="order-details">
-            <p><strong>📦 Product:</strong> {{ order.product }}</p>
-            <p><strong>💰 Total:</strong> €{{ order.amount }}</p>
-            <p><strong>📧 Confirmation:</strong> Sent to {{ order.customer_email }}</p>
+            <h3>📦 Detalles del Pedido</h3>
+            <p><strong>ID del Pedido:</strong> {{ order.order_id }}</p>
+            <p><strong>Producto:</strong> {{ order.product }}</p>
+            <p><strong>Total pagado:</strong> €{{ "%.2f"|format(order.amount) }}</p>
+            <p><strong>Método de pago:</strong> PayPal</p>
+            <p><strong>Dirección de envío:</strong> {{ order.customer_address }}</p>
         </div>
-        
-        <div class="whats-next">
-            <h3>📋 What happens next?</h3>
-            <ul>
-                <li>We'll process your order within 24 hours</li>
-                <li>You'll receive a shipping confirmation</li>
-                <li>Delivery takes 7-15 business days</li>
-            </ul>
+
+        <div class="email-note">
+            <strong>📧 Revisa tu email</strong>
+            <p>Te hemos enviado un email con la confirmación del pedido.</p>
+            <p style="font-size: 0.9rem; color: #636e72;">Si no lo ves, revisa tu carpeta de spam.</p>
         </div>
-        
-        <a href="/" class="btn">🦎 Continue Shopping</a>
+
+        <div class="btn-group">
+            <a href="/" class="btn btn-primary">🏠 Seguir comprando</a>
+            <a href="/orders" class="btn btn-secondary">📋 Ver pedidos</a>
+        </div>
     </div>
 </body>
 </html>

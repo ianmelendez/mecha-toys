@@ -5,12 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout - Mecha Toys</title>
     <link rel="stylesheet" href="/styles.css">
-    
-    <!-- PAYPAL SDK - Configurado para aceptar tarjetas sin login -->
-    <script 
-        src="https://www.paypal.com/sdk/js?client-id=BAAWZKcrT0oNZQvjebVNxzIPmz4qvEDIlP19-ZRoC6tz-9sx3WKXuyT-DdsuG4c8w_R7Cdk88tp5ybH_G0&components=hosted-buttons&disable-funding=venmo&currency=EUR">
-    </script>
-
     <style>
         * {
             margin: 0;
@@ -175,6 +169,7 @@
             color: #636e72;
         }
 
+        /* ✅ ESTILOS DEL BOTÓN DE PAYPAL - UN SOLO BOTÓN */
         .btn-paypal-container {
             margin-top: 20px;
             display: flex;
@@ -183,9 +178,54 @@
             width: 100%;
         }
 
-        #paypal-container-NCN392GYEKDK2 {
+        .btn-paypal-container .pp-NCN392GYEKDK2 {
+            text-align: center;
+            border: none;
+            border-radius: 0.25rem;
+            min-width: 11.625rem;
+            padding: 0 2rem;
+            height: 2.625rem;
+            font-weight: bold;
+            background-color: #FFD140;
+            color: #000000;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 1.25rem;
+            cursor: pointer;
             width: 100%;
             max-width: 400px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-paypal-container .pp-NCN392GYEKDK2:hover {
+            background-color: #f5c800;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
+        }
+
+        .btn-paypal-container .paypal-badges {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-paypal-container .paypal-badges img {
+            height: 20px;
+        }
+
+        .btn-paypal-container .paypal-badges .paypal-credit {
+            font-size: 0.75rem;
+            color: #636e72;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-paypal-container .paypal-badges .paypal-credit img {
+            height: 0.875rem;
+            vertical-align: middle;
         }
 
         .security-badges {
@@ -207,6 +247,7 @@
             gap: 6px;
         }
 
+        /* Spinner */
         .spinner {
             display: inline-block;
             width: 20px;
@@ -221,19 +262,6 @@
 
         @keyframes spin {
             to { transform: rotate(360deg); }
-        }
-
-        .paypal-loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            color: #636e72;
-            font-size: 0.95rem;
-        }
-
-        .paypal-loading .spinner {
-            margin-right: 10px;
         }
 
         @media (max-width: 768px) {
@@ -271,8 +299,10 @@
             .order-summary .summary-row.total {
                 font-size: 1rem;
             }
-            #paypal-container-NCN392GYEKDK2 {
-                max-width: 100%;
+            .btn-paypal-container .pp-NCN392GYEKDK2 {
+                font-size: 0.95rem;
+                padding: 0 1.5rem;
+                height: 2.4rem;
             }
         }
     </style>
@@ -306,7 +336,7 @@
             <p><small>Pay with your PayPal account or credit/debit card. No account required.</small></p>
         </div>
 
-        <!-- ✅ SOLO FORMULARIO - SIN BOTÓN "PAGAR" -->
+        <!-- ✅ FORMULARIO DEL CLIENTE - UN SOLO BOTÓN -->
         <form id="order-form" method="POST">
             <input type="hidden" name="product_id" value="{{ product.id }}">
             
@@ -330,12 +360,44 @@
                 <textarea id="address" name="address" required placeholder="Street, number, city, postal code, country"></textarea>
             </div>
 
-            <!-- ✅ SOLO BOTÓN DE PAYPAL -->
+            <!-- ✅ SOLO ESTE BOTÓN - EL QUE ME DISTE -->
             <div class="btn-paypal-container">
-                <div id="paypal-container-NCN392GYEKDK2">
-                    <div class="paypal-loading">
-                        <span class="spinner"></span> Loading PayPal...
-                    </div>
+                <div>
+                    <style>
+                        .pp-NCN392GYEKDK2 {
+                            text-align: center;
+                            border: none;
+                            border-radius: 0.25rem;
+                            min-width: 11.625rem;
+                            padding: 0 2rem;
+                            height: 2.625rem;
+                            font-weight: bold;
+                            background-color: #FFD140;
+                            color: #000000;
+                            font-family: "Helvetica Neue", Arial, sans-serif;
+                            font-size: 1rem;
+                            line-height: 1.25rem;
+                            cursor: pointer;
+                            width: 100%;
+                            max-width: 400px;
+                            transition: all 0.3s ease;
+                        }
+                        .pp-NCN392GYEKDK2:hover {
+                            background-color: #f5c800;
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
+                        }
+                    </style>
+                    <!-- ⚠️ ESTE ES EL ÚNICO BOTÓN - NO MODIFICAR ⚠️ -->
+                    <form action="https://www.paypal.com/ncp/payment/NCN392GYEKDK2" method="post" target="_blank" style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;width:100%;">
+                        <input class="pp-NCN392GYEKDK2" type="submit" value="Buy Now with PayPal" />
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;">
+                            <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" style="height:20px;" />
+                            <section style="font-size: 0.75rem; color: #636e72; display:flex;align-items:center;gap:4px;">
+                                Powered by <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" style="height:0.875rem;vertical-align:middle;"/>
+                            </section>
+                        </div>
+                    </form>
                 </div>
             </div>
         </form>
@@ -371,30 +433,11 @@
                     if (data.email) document.getElementById('email').value = data.email;
                     if (data.phone) document.getElementById('phone').value = data.phone;
                     if (data.address) document.getElementById('address').value = data.address;
-                } catch(e) {}
-            }
-        });
-
-        // Renderizar PayPal
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof paypal !== 'undefined') {
-                try {
-                    paypal.HostedButtons({
-                        hostedButtonId: "NCN392GYEKDK2",
-                    }).render("#paypal-container-NCN392GYEKDK2");
                 } catch(e) {
-                    document.getElementById('paypal-container-NCN392GYEKDK2').innerHTML = 
-                        '<p style="color:#e17055;">Error loading PayPal. Please refresh.</p>';
+                    // Ignorar errores
                 }
             }
         });
-
-        // Backup render
-        if (typeof paypal !== 'undefined') {
-            paypal.HostedButtons({
-                hostedButtonId: "NCN392GYEKDK2",
-            }).render("#paypal-container-NCN392GYEKDK2");
-        }
     </script>
 </body>
 </html>

@@ -404,7 +404,24 @@ def paypal_redirect(product_id):
 # ===== APPLE PAY ROUTES =====
 # ============================================================
 
+
+
+
+@app.route('/test-google-pay/<product_id>')
+def test_google_pay(product_id):
+    """Test page for Google Pay"""
+    product = PRODUCTS.get(product_id)
+    if not product:
+        return "Product not found", 404
+    return render_template('google_pay_test.html', 
+                         product=product,
+                         client_id=PAYPAL_CLIENT_ID)
 @app.route('/create-apple-pay-order', methods=['POST'])
+
+
+
+
+
 def create_apple_pay_order():
     try:
         data = request.json

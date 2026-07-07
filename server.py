@@ -13,8 +13,8 @@ app = Flask(__name__,
 app.secret_key = secrets.token_hex(16)
 
 # ===== CONFIGURE YOUR EMAIL HERE =====
-YOUR_EMAIL = "your_email@gmail.com"  # CHANGE THIS!
-YOUR_EMAIL_PASSWORD = "your_app_password"  # CHANGE THIS!
+YOUR_EMAIL = "mecchachameleonstore@gmail.com"  # CHANGE THIS!
+YOUR_EMAIL_PASSWORD = "Malapak15."  # CHANGE THIS!
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 

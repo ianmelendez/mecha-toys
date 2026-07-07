@@ -169,7 +169,6 @@
             color: #636e72;
         }
 
-        /* ✅ ESTILOS DEL BOTÓN DE PAYPAL - UN SOLO BOTÓN */
         .btn-paypal-container {
             margin-top: 20px;
             display: flex;
@@ -178,54 +177,15 @@
             width: 100%;
         }
 
-        .btn-paypal-container .pp-NCN392GYEKDK2 {
-            text-align: center;
-            border: none;
-            border-radius: 0.25rem;
-            min-width: 11.625rem;
-            padding: 0 2rem;
-            height: 2.625rem;
-            font-weight: bold;
-            background-color: #FFD140;
-            color: #000000;
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            font-size: 1rem;
-            line-height: 1.25rem;
-            cursor: pointer;
+        .btn-paypal-container form {
             width: 100%;
             max-width: 400px;
-            transition: all 0.3s ease;
         }
 
-        .btn-paypal-container .pp-NCN392GYEKDK2:hover {
-            background-color: #f5c800;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
-        }
-
-        .btn-paypal-container .paypal-badges {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .btn-paypal-container .paypal-badges img {
-            height: 20px;
-        }
-
-        .btn-paypal-container .paypal-badges .paypal-credit {
-            font-size: 0.75rem;
-            color: #636e72;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .btn-paypal-container .paypal-badges .paypal-credit img {
-            height: 0.875rem;
-            vertical-align: middle;
+        .btn-paypal-container input[type="image"] {
+            width: 100%;
+            max-width: 400px;
+            cursor: pointer;
         }
 
         .security-badges {
@@ -245,23 +205,6 @@
             display: flex;
             align-items: center;
             gap: 6px;
-        }
-
-        /* Spinner */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0,0,0,0.1);
-            border-radius: 50%;
-            border-top-color: #0070ba;
-            animation: spin 0.8s ease infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
         }
 
         @media (max-width: 768px) {
@@ -299,11 +242,6 @@
             .order-summary .summary-row.total {
                 font-size: 1rem;
             }
-            .btn-paypal-container .pp-NCN392GYEKDK2 {
-                font-size: 0.95rem;
-                padding: 0 1.5rem;
-                height: 2.4rem;
-            }
         }
     </style>
 </head>
@@ -336,7 +274,7 @@
             <p><small>Pay with your PayPal account or credit/debit card. No account required.</small></p>
         </div>
 
-        <!-- ✅ FORMULARIO DEL CLIENTE - UN SOLO BOTÓN -->
+        <!-- ✅ FORMULARIO DEL CLIENTE -->
         <form id="order-form" method="POST">
             <input type="hidden" name="product_id" value="{{ product.id }}">
             
@@ -360,45 +298,23 @@
                 <textarea id="address" name="address" required placeholder="Street, number, city, postal code, country"></textarea>
             </div>
 
-            <!-- ✅ SOLO ESTE BOTÓN - EL QUE ME DISTE -->
+            <!-- ✅ BOTÓN GENÉRICO DE PAYPAL - FUNCIONA SIEMPRE -->
             <div class="btn-paypal-container">
-                <div>
-                    <style>
-                        .pp-NCN392GYEKDK2 {
-                            text-align: center;
-                            border: none;
-                            border-radius: 0.25rem;
-                            min-width: 11.625rem;
-                            padding: 0 2rem;
-                            height: 2.625rem;
-                            font-weight: bold;
-                            background-color: #FFD140;
-                            color: #000000;
-                            font-family: "Helvetica Neue", Arial, sans-serif;
-                            font-size: 1rem;
-                            line-height: 1.25rem;
-                            cursor: pointer;
-                            width: 100%;
-                            max-width: 400px;
-                            transition: all 0.3s ease;
-                        }
-                        .pp-NCN392GYEKDK2:hover {
-                            background-color: #f5c800;
-                            transform: translateY(-2px);
-                            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
-                        }
-                    </style>
-                    <!-- ⚠️ ESTE ES EL ÚNICO BOTÓN - NO MODIFICAR ⚠️ -->
-                    <form action="https://www.paypal.com/ncp/payment/NCN392GYEKDK2" method="post" target="_blank" style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;width:100%;">
-                        <input class="pp-NCN392GYEKDK2" type="submit" value="Buy Now with PayPal" />
-                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;">
-                            <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" style="height:20px;" />
-                            <section style="font-size: 0.75rem; color: #636e72; display:flex;align-items:center;gap:4px;">
-                                Powered by <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" style="height:0.875rem;vertical-align:middle;"/>
-                            </section>
-                        </div>
-                    </form>
-                </div>
+                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
+                    <input type="hidden" name="cmd" value="_xclick">
+                    <input type="hidden" name="business" value="mecchachameleonstore@gmail.com">
+                    <input type="hidden" name="lc" value="US">
+                    <input type="hidden" name="item_name" value="{{ product.name }}">
+                    <input type="hidden" name="amount" value="{{ product.price }}">
+                    <input type="hidden" name="currency_code" value="EUR">
+                    <input type="hidden" name="button_subtype" value="services">
+                    <input type="hidden" name="no_note" value="0">
+                    <input type="hidden" name="tax_rate" value="0.00">
+                    <input type="hidden" name="shipping" value="0.00">
+                    <input type="hidden" name="return" value="https://mecha-toys.onrender.com/place-order">
+                    <input type="hidden" name="cancel_return" value="https://mecha-toys.onrender.com/">
+                    <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_buynowCC_LG.gif" border="0" name="submit" alt="PayPal">
+                </form>
             </div>
         </form>
 
@@ -411,7 +327,7 @@
     </div>
 
     <script>
-        // Guardar datos del cliente en localStorage
+        // Guardar datos del cliente
         document.getElementById('order-form').addEventListener('submit', function(e) {
             const customerData = {
                 name: document.getElementById('name').value,
@@ -433,9 +349,7 @@
                     if (data.email) document.getElementById('email').value = data.email;
                     if (data.phone) document.getElementById('phone').value = data.phone;
                     if (data.address) document.getElementById('address').value = data.address;
-                } catch(e) {
-                    // Ignorar errores
-                }
+                } catch(e) {}
             }
         });
     </script>

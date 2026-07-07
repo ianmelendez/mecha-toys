@@ -6,7 +6,7 @@
     <title>Checkout - Mecha Toys</title>
     <link rel="stylesheet" href="/styles.css">
     
-    <!-- PAYPAL SDK -->
+    <!-- PAYPAL SDK - Configurado para aceptar tarjetas sin login -->
     <script 
         src="https://www.paypal.com/sdk/js?client-id=BAAWZKcrT0oNZQvjebVNxzIPmz4qvEDIlP19-ZRoC6tz-9sx3WKXuyT-DdsuG4c8w_R7Cdk88tp5ybH_G0&components=hosted-buttons&disable-funding=venmo&currency=EUR">
     </script>
@@ -188,11 +188,6 @@
             max-width: 400px;
         }
 
-        /* Ocultar el botón de submit del formulario que no usamos */
-        .hidden-submit {
-            display: none !important;
-        }
-
         .security-badges {
             display: flex;
             justify-content: center;
@@ -212,7 +207,6 @@
             gap: 6px;
         }
 
-        /* Spinner */
         .spinner {
             display: inline-block;
             width: 20px;
@@ -309,11 +303,11 @@
 
         <div class="paypal-info">
             <p>🔒 <strong>Secure Payment with PayPal</strong></p>
-            <p><small>Pay with your PayPal account or credit/debit card.</small></p>
+            <p><small>Pay with your PayPal account or credit/debit card. No account required.</small></p>
         </div>
 
-        <!-- FORMULARIO DEL CLIENTE - SIN BOTÓN DE ENVÍO -->
-        <form id="order-form" action="/checkout/{{ product.id }}" method="POST">
+        <!-- ✅ SOLO FORMULARIO - SIN BOTÓN "PAGAR" -->
+        <form id="order-form" method="POST">
             <input type="hidden" name="product_id" value="{{ product.id }}">
             
             <div class="form-group">
@@ -336,7 +330,7 @@
                 <textarea id="address" name="address" required placeholder="Street, number, city, postal code, country"></textarea>
             </div>
 
-            <!-- ✅ BOTÓN DE PAYPAL - ESTE ES EL ÚNICO BOTÓN QUE DEBE ESTAR -->
+            <!-- ✅ SOLO BOTÓN DE PAYPAL -->
             <div class="btn-paypal-container">
                 <div id="paypal-container-NCN392GYEKDK2">
                     <div class="paypal-loading">
@@ -355,10 +349,8 @@
     </div>
 
     <script>
-        // Guardar datos del cliente en localStorage cuando se envía el formulario
-        // El formulario se envía automáticamente cuando el cliente hace clic en el botón de PayPal
+        // Guardar datos del cliente en localStorage
         document.getElementById('order-form').addEventListener('submit', function(e) {
-            // Guardar en localStorage
             const customerData = {
                 name: document.getElementById('name').value,
                 email: document.getElementById('email').value,
@@ -369,7 +361,7 @@
             localStorage.setItem('pending_order', JSON.stringify(customerData));
         });
 
-        // Restaurar datos guardados si el usuario vuelve
+        // Restaurar datos guardados
         document.addEventListener('DOMContentLoaded', function() {
             const savedData = localStorage.getItem('pending_order');
             if (savedData) {
@@ -379,13 +371,11 @@
                     if (data.email) document.getElementById('email').value = data.email;
                     if (data.phone) document.getElementById('phone').value = data.phone;
                     if (data.address) document.getElementById('address').value = data.address;
-                } catch(e) {
-                    // Ignorar errores
-                }
+                } catch(e) {}
             }
         });
 
-        // ⚠️ RENDERIZAR EL BOTÓN DE PAYPAL ⚠️
+        // Renderizar PayPal
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof paypal !== 'undefined') {
                 try {
@@ -393,13 +383,9 @@
                         hostedButtonId: "NCN392GYEKDK2",
                     }).render("#paypal-container-NCN392GYEKDK2");
                 } catch(e) {
-                    console.error('Error al renderizar PayPal:', e);
                     document.getElementById('paypal-container-NCN392GYEKDK2').innerHTML = 
-                        '<p style="color:#e17055;">Error loading PayPal. Please try again.</p>';
+                        '<p style="color:#e17055;">Error loading PayPal. Please refresh.</p>';
                 }
-            } else {
-                document.getElementById('paypal-container-NCN392GYEKDK2').innerHTML = 
-                    '<p style="color:#e17055;">PayPal SDK not loaded. Please refresh the page.</p>';
             }
         });
 

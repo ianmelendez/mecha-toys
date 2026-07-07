@@ -588,7 +588,17 @@ def view_orders():
             <a href="/" style="display:inline-block;margin-top:20px;padding:12px 30px;background:#0070ba;color:white;text-decoration:none;border-radius:10px;">← Back to store</a>
         </div>
         """
-
+    
+# ===== APPLE PAY DOMAIN VERIFICATION =====
+@app.route('/.well-known/apple-developer-merchantid-domain-association')
+def serve_apple_pay():
+    """Serve Apple Pay domain verification file"""
+    try:
+        return send_from_directory('.', 'apple-developer-merchantid-domain-association')
+    except Exception as e:
+        print(f"Error serving Apple Pay verification: {e}")
+        return "File not found", 404
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 

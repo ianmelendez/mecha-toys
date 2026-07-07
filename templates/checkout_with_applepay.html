@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Checkout - Mecha Toys</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
     
-    <!-- SDK de PayPal para Apple Pay -->
-    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&components=buttons,applepay&currency=EUR&intent=capture">
+    <!-- PayPal SDK for Apple Pay - CON PARÁMETROS CORRECTOS -->
+    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&components=applepay&currency=EUR&intent=capture">
     </script>
     
     <style>
@@ -38,22 +38,9 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #1a1a2e;
-            margin-bottom: 6px;
-        }
-
-        .header p {
-            color: #636e72;
-            font-size: 1rem;
-        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2rem; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+        .header p { color: #636e72; font-size: 1rem; }
 
         .product-summary {
             background: #f8f9fa;
@@ -63,42 +50,13 @@
             border: 1px solid #e9ecef;
         }
 
-        .product-summary .label {
-            font-size: 0.85rem;
-            color: #636e72;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .product-summary .label { font-size: 0.85rem; color: #636e72; font-weight: 600; text-transform: uppercase; }
+        .product-summary .name { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 4px 0; }
+        .product-summary .price { font-size: 1.8rem; font-weight: 800; color: #e17055; }
 
-        .product-summary .name {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin: 4px 0;
-        }
-
-        .product-summary .price {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #e17055;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #1a1a2e;
-            margin-bottom: 6px;
-        }
-
-        .form-group label .required {
-            color: #e17055;
-        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.9rem; color: #1a1a2e; margin-bottom: 6px; }
+        .form-group label .required { color: #e17055; }
 
         .form-group input,
         .form-group textarea {
@@ -120,16 +78,8 @@
             box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
         }
 
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
         .payment-section {
             margin-top: 25px;
@@ -148,22 +98,27 @@
             text-align: center;
         }
 
-        .payment-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        .payment-buttons { display: flex; flex-direction: column; gap: 12px; }
 
         #applepay-button {
             height: 50px;
             width: 100%;
             border-radius: 12px;
             min-height: 50px;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #636e72;
+            font-size: 0.9rem;
         }
 
-        .paypal-btn-wrapper {
-            margin-top: 10px;
+        #applepay-button .placeholder {
+            color: #b2bec3;
+            font-size: 0.85rem;
         }
+
+        .paypal-btn-wrapper { margin-top: 10px; }
 
         .paypal-btn-wrapper .btn-paypal {
             width: 100%;
@@ -190,15 +145,8 @@
             transform: none;
         }
 
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .loading.active {
-            display: block;
-        }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
 
         .spinner {
             border: 4px solid #f3f3f3;
@@ -223,25 +171,9 @@
             flex-wrap: wrap;
         }
 
-        .trust-badges span {
-            font-size: 0.85rem;
-            color: #636e72;
-            font-weight: 500;
-        }
-
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 16px;
-            color: #636e72;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.2s ease;
-        }
-
-        .back-link:hover {
-            color: #1a1a2e;
-        }
+        .trust-badges span { font-size: 0.85rem; color: #636e72; font-weight: 500; }
+        .back-link { display: block; text-align: center; margin-top: 16px; color: #636e72; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: #1a1a2e; }
 
         .divider {
             display: flex;
@@ -258,12 +190,22 @@
             border-bottom: 1px solid #e9ecef;
         }
 
-        .divider::before {
-            margin-right: 15px;
+        .divider::before { margin-right: 15px; }
+        .divider::after { margin-left: 15px; }
+
+        /* Debug info - mostrar solo si hay error */
+        #debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #856404;
+            display: none;
         }
-        .divider::after {
-            margin-left: 15px;
-        }
+
+        #debug-info.visible { display: block; }
 
         @media (max-width: 600px) {
             .checkout-container { padding: 24px; }
@@ -276,89 +218,105 @@
 <body>
     <div class="checkout-container">
         <div class="header">
-            <h1>🛒 Finalizar Compra</h1>
-            <p>Completa tu pago de forma segura</p>
+            <h1>🛒 Checkout</h1>
+            <p>Complete your purchase securely</p>
         </div>
 
         <div class="product-summary">
-            <div class="label">Tu Pedido</div>
+            <div class="label">Your Order</div>
             <div class="name">{{ product.name }}</div>
             <div class="price">€{{ "%.2f"|format(product.price) }}</div>
         </div>
 
         <form id="checkout-form" method="POST" action="/checkout/{{ product.id }}">
             <div class="form-group">
-                <label for="name">Nombre Completo <span class="required">*</span></label>
-                <input type="text" id="name" name="name" placeholder="Juan Pérez" required />
+                <label for="name">Full Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" placeholder="John Doe" required />
             </div>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="email">Email <span class="required">*</span></label>
-                    <input type="email" id="email" name="email" placeholder="juan@ejemplo.com" required />
+                    <input type="email" id="email" name="email" placeholder="john@example.com" required />
                 </div>
                 <div class="form-group">
-                    <label for="phone">Teléfono</label>
+                    <label for="phone">Phone</label>
                     <input type="tel" id="phone" name="phone" placeholder="+34 600 000 000" />
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="address">Dirección de Envío <span class="required">*</span></label>
-                <textarea id="address" name="address" placeholder="Calle, Ciudad, Código Postal, País" required></textarea>
+                <label for="address">Shipping Address <span class="required">*</span></label>
+                <textarea id="address" name="address" placeholder="Street, City, Postal Code, Country" required></textarea>
             </div>
 
             <div class="payment-section">
-                <span class="label">💳 Métodos de Pago</span>
+                <span class="label">💳 Payment Methods</span>
                 
                 <div class="payment-buttons">
-                    <!-- APPLE PAY -->
-                    <div id="applepay-button"></div>
+                    <!-- APPLE PAY BUTTON -->
+                    <div id="applepay-button">
+                        <span class="placeholder">⌛ Checking Apple Pay...</span>
+                    </div>
 
-                    <div class="divider">o paga con PayPal</div>
+                    <div class="divider">or pay with PayPal</div>
 
-                    <!-- PAYPAL STANDARD (con redirección) -->
+                    <!-- PAYPAL STANDARD -->
                     <div class="paypal-btn-wrapper">
                         <button type="submit" class="btn-paypal" id="paypal-btn">
-                            💳 Pagar con PayPal
+                            💳 Pay with PayPal
                         </button>
                     </div>
                 </div>
 
                 <div class="loading" id="loading-indicator">
                     <div class="spinner"></div>
-                    <p style="color: #636e72;">Procesando tu pago...</p>
+                    <p style="color: #636e72;">Processing your payment...</p>
                 </div>
+
+                <!-- Debug info -->
+                <div id="debug-info"></div>
             </div>
         </form>
 
         <div class="trust-badges">
-            <span>🔒 Pago Seguro</span>
-            <span>🛡️ Protección al Comprador</span>
-            <span>📦 Envío Rápido</span>
+            <span>🔒 Secure Payment</span>
+            <span>🛡️ Buyer Protection</span>
+            <span>📦 Fast Shipping</span>
         </div>
 
-        <a href="/" class="back-link">← Volver a la tienda</a>
+        <a href="/" class="back-link">← Back to Store</a>
     </div>
 
     <script>
         // ============================================
-        // VARIABLES GLOBALES - TODAS COMO STRING
+        // VARIABLES
         // ============================================
-        var productId = "{{ product.id|tojson }}";
-        var productName = "{{ product.name|tojson }}";
-        var productPrice = "{{ product.price|tojson }}";
-        var clientId = "{{ client_id|tojson }}";
+        var productId = "{{ product.id }}";
+        var productName = "{{ product.name }}";
+        var productPrice = "{{ product.price }}";
+        var clientId = "{{ client_id }}";
 
-        // Convertir precio a número
-        var priceNumber = parseFloat(productPrice);
-
-        console.log('Producto:', productName);
-        console.log('Precio:', priceNumber);
+        console.log('=== APPLE PAY DEBUG ===');
+        console.log('Product:', productName);
         console.log('Client ID:', clientId);
 
         // ============================================
-        // FUNCIONES AUXILIARES
+        // FUNCIONES DE DEBUG
+        // ============================================
+        function showDebug(message, type) {
+            var debug = document.getElementById('debug-info');
+            debug.textContent = message;
+            debug.className = 'visible';
+            console.log('[DEBUG]', message);
+        }
+
+        function hideDebug() {
+            document.getElementById('debug-info').className = '';
+        }
+
+        // ============================================
+        // GET CUSTOMER DATA
         // ============================================
         function getCustomerData() {
             var name = document.getElementById('name').value.trim();
@@ -367,7 +325,7 @@
             var address = document.getElementById('address').value.trim();
             
             if (!name || !email || !address) {
-                alert('Por favor, completa todos los campos obligatorios.');
+                alert('Please fill in all required fields.');
                 return null;
             }
             
@@ -385,7 +343,7 @@
         }
 
         // ============================================
-        // CREAR PEDIDO PARA APPLE PAY
+        // CREATE APPLE PAY ORDER
         // ============================================
         async function createApplePayOrder() {
             var customerData = getCustomerData();
@@ -398,7 +356,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        product_id: productId.replace(/^"|"$/g, ''),
+                        product_id: productId,
                         customer_name: customerData.name,
                         customer_email: customerData.email,
                         customer_phone: customerData.phone,
@@ -409,7 +367,7 @@
                 var data = await response.json();
                 
                 if (data.error) {
-                    alert('Error al crear el pedido: ' + data.error);
+                    alert('Error creating order: ' + data.error);
                     hideLoading();
                     return null;
                 }
@@ -419,14 +377,14 @@
                 
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al procesar el pago. Intenta de nuevo.');
+                alert('Error processing payment. Please try again.');
                 hideLoading();
                 return null;
             }
         }
 
         // ============================================
-        // CAPTURAR PEDIDO APPLE PAY
+        // CAPTURE APPLE PAY ORDER
         // ============================================
         async function captureApplePayOrder(orderId) {
             try {
@@ -441,77 +399,129 @@
                 if (data.success) {
                     window.location.href = '/orders';
                 } else {
-                    alert('Error al procesar el pago: ' + (data.error || 'Error desconocido'));
+                    alert('Error processing payment: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al procesar el pago. Intenta de nuevo.');
+                alert('Error processing payment. Please try again.');
             }
         }
 
         // ============================================
-        // CONFIGURAR APPLE PAY
+        // INIT APPLE PAY - CON DEBUG EXTENSO
         // ============================================
         function initApplePay() {
-            // Verificar que el SDK de PayPal esté disponible
-            if (typeof paypal !== 'undefined' && paypal.Applepay) {
-                // Verificar si Apple Pay está disponible en el dispositivo
-                if (window.ApplePaySession && ApplePaySession.canMakePayments()) {
-                    console.log('Apple Pay disponible');
+            var applePayButton = document.getElementById('applepay-button');
+            var placeholder = applePayButton.querySelector('.placeholder');
+            
+            console.log('=== CHECKING APPLE PAY ===');
+            console.log('1. Checking if paypal is defined...');
+            
+            // 1. Check if PayPal SDK is loaded
+            if (typeof paypal === 'undefined') {
+                console.log('❌ PayPal SDK not loaded!');
+                showDebug('❌ PayPal SDK not loaded. Check your internet connection and client ID.');
+                placeholder.textContent = '❌ PayPal SDK Error';
+                return;
+            }
+            console.log('✅ PayPal SDK loaded');
+            
+            // 2. Check if Apple Pay component is available
+            console.log('2. Checking if Apple Pay component is available...');
+            if (typeof paypal.Applepay === 'undefined') {
+                console.log('❌ Apple Pay component not available in SDK');
+                showDebug('❌ Apple Pay component not available. Make sure "components=applepay" is in the SDK URL.');
+                placeholder.textContent = '❌ Apple Pay not supported';
+                return;
+            }
+            console.log('✅ Apple Pay component available');
+            
+            // 3. Check if Apple Pay is available on the device
+            console.log('3. Checking if Apple Pay is available on device...');
+            if (typeof window.ApplePaySession === 'undefined') {
+                console.log('❌ ApplePaySession not available (not Safari or old version)');
+                showDebug('❌ Apple Pay not available. Use Safari on iPhone, iPad, or Mac.');
+                placeholder.textContent = '❌ Apple Pay not available';
+                return;
+            }
+            console.log('✅ ApplePaySession available');
+            
+            // 4. Check if Apple Pay can make payments
+            console.log('4. Checking if Apple Pay can make payments...');
+            if (!ApplePaySession.canMakePayments()) {
+                console.log('❌ Apple Pay canMakePayments() returned false');
+                showDebug('❌ Apple Pay not configured on this device. Add a card to Apple Wallet.');
+                placeholder.textContent = '❌ Apple Pay not configured';
+                return;
+            }
+            console.log('✅ Apple Pay can make payments!');
+            
+            // 5. Render the button
+            console.log('5. Rendering Apple Pay button...');
+            hideDebug();
+            
+            // Remove placeholder text
+            placeholder.textContent = '';
+            
+            try {
+                paypal.Applepay({
+                    style: {
+                        type: 'pay',
+                        color: 'black',
+                        language: 'en'
+                    },
                     
-                    paypal.Applepay({
-                        style: {
-                            type: 'pay',
-                            color: 'black',
-                            language: 'es'
-                        },
-                        
-                        createOrder: function() {
-                            return createApplePayOrder();
-                        },
-                        
-                        onApprove: function(data) {
-                            captureApplePayOrder(data.orderID);
-                        },
-                        
-                        onError: function(err) {
-                            console.error('Error Apple Pay:', err);
-                            alert('Error al procesar el pago con Apple Pay. Intenta de nuevo.');
-                            hideLoading();
-                        }
-                        
-                    }).render('#applepay-button');
+                    createOrder: function() {
+                        console.log('🎯 Apple Pay: createOrder called');
+                        return createApplePayOrder();
+                    },
                     
-                } else {
-                    console.log('Apple Pay no disponible en este dispositivo');
-                    var btn = document.getElementById('applepay-button');
-                    if (btn) btn.style.display = 'none';
-                }
-            } else {
-                console.log('PayPal SDK no cargado o Apple Pay no soportado');
-                var btn = document.getElementById('applepay-button');
-                if (btn) btn.style.display = 'none';
+                    onApprove: function(data) {
+                        console.log('🎯 Apple Pay: onApprove called', data);
+                        captureApplePayOrder(data.orderID);
+                    },
+                    
+                    onError: function(err) {
+                        console.error('❌ Apple Pay Error:', err);
+                        alert('Error with Apple Pay. Please try again.');
+                        hideLoading();
+                    }
+                    
+                }).render('#applepay-button');
+                
+                console.log('✅ Apple Pay button rendered successfully!');
+                
+            } catch (error) {
+                console.error('❌ Error rendering Apple Pay button:', error);
+                showDebug('❌ Error rendering Apple Pay button: ' + error.message);
+                placeholder.textContent = '❌ Error loading Apple Pay';
             }
         }
 
         // ============================================
-        // INICIALIZAR CUANDO LA PÁGINA ESTÉ LISTA
+        // INIT WHEN PAGE IS READY
         // ============================================
+        function startApp() {
+            console.log('=== PAGE LOADED ===');
+            // Wait a bit for SDK to fully load
+            setTimeout(initApplePay, 1500);
+        }
+
         if (document.readyState === 'complete') {
-            initApplePay();
+            startApp();
         } else {
-            window.addEventListener('load', initApplePay);
+            window.addEventListener('load', startApp);
         }
 
         // ============================================
-        // VALIDACIÓN DEL FORMULARIO
+        // FORM VALIDATION
         // ============================================
         var form = document.getElementById('checkout-form');
         if (form) {
             form.addEventListener('submit', function(e) {
                 var btn = document.getElementById('paypal-btn');
                 btn.disabled = true;
-                btn.textContent = '⏳ Procesando...';
+                btn.textContent = '⏳ Processing...';
             });
         }
 

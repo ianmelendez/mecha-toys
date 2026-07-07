@@ -7,7 +7,8 @@ from datetime import datetime
 import secrets
 import os
 import uuid
-import paypalrestsdk
+import requests
+import base64
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -25,17 +26,36 @@ PAYPAL_EMAIL = "mecchachameleonstore@gmail.com"
 PAYPAL_SANDBOX = False
 PAYPAL_URL = "https://www.paypal.com/cgi-bin/webscr"
 
-# ===== PAYPAL API CONFIGURATION (for Apple Pay & Google Pay) =====
+# ===== PAYPAL API CONFIGURATION =====
 PAYPAL_CLIENT_ID = "ARlmoa47tt-GIkbslRohxq74lrNmv7kdpo6TTk4WYzS4DkZ5VqAk1CjVDzoaCHOHeFYcy_UQdWw2OqKj"
 PAYPAL_CLIENT_SECRET = "EDQ2PE-NJO4IQoivFo9_EiAiKm-LH9B5CKWAxnwAadambd5KbxaVsY9Gh3_6axdlJbDtOF84p2fqBJa4"
-PAYPAL_MODE = "live"  # Use "sandbox" for testing
+PAYPAL_MODE = "live"  # "sandbox" for testing
 
-# Configure PayPal SDK
-paypalrestsdk.configure({
-    "mode": PAYPAL_MODE,
-    "client_id": PAYPAL_CLIENT_ID,
-    "client_secret": PAYPAL_CLIENT_SECRET
-})
+# PayPal API URL
+if PAYPAL_MODE == "sandbox":
+    PAYPAL_API_URL = "https://api-m.sandbox.paypal.com"
+else:
+    PAYPAL_API_URL = "https://api-m.paypal.com"
+
+# ===== GET PAYPAL ACCESS TOKEN =====
+def get_paypal_access_token():
+    """Get PayPal OAuth access token"""
+    auth = base64.b64encode(f"{PAYPAL_CLIENT_ID}:{PAYPAL_CLIENT_SECRET}".encode()).decode()
+    
+    response = requests.post(
+        f"{PAYPAL_API_URL}/v1/oauth2/token",
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data="grant_type=client_credentials"
+    )
+    
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        print(f"❌ Error getting PayPal token: {response.text}")
+        return None
 
 # ===== PRODUCTS =====
 PRODUCTS = {
@@ -157,6 +177,68 @@ def send_email(to_email, subject, body):
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
         return False
+
+# ============================================================
+# ===== PAYPAL API FUNCTIONS (como en la documentación) =====
+# ============================================================
+
+def create_paypal_order(amount, description):
+    """Create a PayPal order using REST API (como en la documentación)"""
+    access_token = get_paypal_access_token()
+    if not access_token:
+        return None
+    
+    order_data = {
+        "intent": "CAPTURE",
+        "purchase_units": [{
+            "reference_id": f"GP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "description": description,
+            "amount": {
+                "currency_code": "EUR",
+                "value": str(amount)
+            }
+        }],
+        "application_context": {
+            "return_url": "https://mecha-toys.onrender.com/payment-success",
+            "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
+            "user_action": "PAY_NOW"
+        }
+    }
+    
+    response = requests.post(
+        f"{PAYPAL_API_URL}/v2/checkout/orders",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        },
+        json=order_data
+    )
+    
+    if response.status_code == 201:
+        return response.json()
+    else:
+        print(f"❌ Error creating order: {response.text}")
+        return None
+
+def capture_paypal_order(order_id):
+    """Capture a PayPal order using REST API (como en la documentación)"""
+    access_token = get_paypal_access_token()
+    if not access_token:
+        return None
+    
+    response = requests.post(
+        f"{PAYPAL_API_URL}/v2/checkout/orders/{order_id}/capture",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+    )
+    
+    if response.status_code == 201:
+        return response.json()
+    else:
+        print(f"❌ Error capturing order: {response.text}")
+        return None
 
 # ============================================================
 # ===== ROUTES =====
@@ -345,31 +427,16 @@ def create_apple_pay_order():
             'product_id': product_id
         }
         
-        order = paypalrestsdk.Order({
-            "intent": "CAPTURE",
-            "purchase_units": [{
-                "reference_id": f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "description": product['name'],
-                "amount": {
-                    "currency_code": "EUR",
-                    "value": str(product['price'])
-                }
-            }],
-            "application_context": {
-                "return_url": "https://mecha-toys.onrender.com/payment-success",
-                "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
-                "user_action": "PAY_NOW"
-            }
-        })
+        # Usar la función create_paypal_order
+        order = create_paypal_order(product['price'], product['name'])
         
-        if order.create():
+        if order and 'id' in order:
             return jsonify({
-                'order_id': order.id,
+                'order_id': order['id'],
                 'status': 'created'
             })
         else:
-            print(f"Order creation error: {order.error}")
-            return jsonify({'error': order.error}), 400
+            return jsonify({'error': 'Failed to create order'}), 400
             
     except Exception as e:
         print(f"Error creating order: {e}")
@@ -385,13 +452,13 @@ def capture_apple_pay_order():
         if not order_id:
             return jsonify({'error': 'Order ID required'}), 400
         
-        order = paypalrestsdk.Order.find(order_id)
+        # Usar la función capture_paypal_order
+        capture_result = capture_paypal_order(order_id)
         
-        if order.capture():
-            transaction_id = order.purchase_units[0].payments.captures[0].id
+        if capture_result and 'status' in capture_result and capture_result['status'] == 'COMPLETED':
+            transaction_id = capture_result['purchase_units'][0]['payments']['captures'][0]['id']
             
             customer_data = session.get('customer_data', {})
-            
             product_id = customer_data.get('product_id')
             product = PRODUCTS.get(product_id)
             
@@ -442,7 +509,6 @@ def capture_apple_pay_order():
                 'transaction_id': transaction_id
             })
         else:
-            print(f"Capture error: {order.error}")
             return jsonify({'error': 'Failed to capture payment'}), 400
             
     except Exception as e:
@@ -450,12 +516,12 @@ def capture_apple_pay_order():
         return jsonify({'error': str(e)}), 500
 
 # ============================================================
-# ===== GOOGLE PAY ROUTES =====
+# ===== GOOGLE PAY ROUTES - USANDO API REST DIRECTA =====
 # ============================================================
 
 @app.route('/create-google-pay-order', methods=['POST'])
 def create_google_pay_order():
-    """Create an order for Google Pay - CORREGIDO"""
+    """Create an order for Google Pay - Usando API REST directa"""
     try:
         data = request.json
         print(f"📥 Google Pay create order request: {data}")
@@ -482,37 +548,18 @@ def create_google_pay_order():
             'product_id': product_id
         }
         
-        # Create order with PayPal
-        order = paypalrestsdk.Order({
-            "intent": "CAPTURE",
-            "purchase_units": [{
-                "reference_id": f"GP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "description": product['name'],
-                "amount": {
-                    "currency_code": "EUR",
-                    "value": str(product['price'])
-                },
-                "payee": {
-                    "email_address": PAYPAL_EMAIL
-                }
-            }],
-            "application_context": {
-                "return_url": "https://mecha-toys.onrender.com/payment-success",
-                "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
-                "user_action": "PAY_NOW",
-                "shipping_preference": "NO_SHIPPING"
-            }
-        })
+        # Create order using the REST API function
+        order = create_paypal_order(product['price'], product['name'])
         
-        if order.create():
-            print(f"✅ Google Pay order created: {order.id}")
+        if order and 'id' in order:
+            print(f"✅ Google Pay order created: {order['id']}")
             return jsonify({
-                'order_id': order.id,
+                'order_id': order['id'],
                 'status': 'created'
             })
         else:
-            print(f"❌ Google Pay order creation error: {order.error}")
-            return jsonify({'error': order.error}), 400
+            print(f"❌ Google Pay order creation failed: {order}")
+            return jsonify({'error': 'Failed to create order'}), 400
             
     except Exception as e:
         print(f"❌ Exception creating Google Pay order: {e}")
@@ -520,7 +567,7 @@ def create_google_pay_order():
 
 @app.route('/capture-google-pay-order', methods=['POST'])
 def capture_google_pay_order():
-    """Capture the payment after Google Pay - CORREGIDO"""
+    """Capture the payment after Google Pay - Usando API REST directa"""
     try:
         data = request.json
         print(f"📥 Google Pay capture request: {data}")
@@ -530,13 +577,12 @@ def capture_google_pay_order():
         if not order_id:
             return jsonify({'error': 'Order ID required'}), 400
         
-        # Find the order
-        order = paypalrestsdk.Order.find(order_id)
-        print(f"🔍 Found order: {order_id}")
+        # Capture using the REST API function
+        capture_result = capture_paypal_order(order_id)
+        print(f"🔍 Capture result: {capture_result}")
         
-        # Capture the payment
-        if order.capture():
-            transaction_id = order.purchase_units[0].payments.captures[0].id
+        if capture_result and 'status' in capture_result and capture_result['status'] == 'COMPLETED':
+            transaction_id = capture_result['purchase_units'][0]['payments']['captures'][0]['id']
             print(f"✅ Payment captured: {transaction_id}")
             
             customer_data = session.get('customer_data', {})
@@ -592,8 +638,8 @@ def capture_google_pay_order():
                 'transaction_id': transaction_id
             })
         else:
-            print(f"❌ Capture failed: {order.error}")
-            return jsonify({'error': order.error}), 400
+            print(f"❌ Capture failed: {capture_result}")
+            return jsonify({'error': 'Failed to capture payment'}), 400
             
     except Exception as e:
         print(f"❌ Exception capturing Google Pay order: {e}")

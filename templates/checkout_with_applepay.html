@@ -6,8 +6,8 @@
     <title>Checkout - Mecha Toys</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
     
-    <!-- PayPal SDK for Apple Pay - CON PARÁMETROS CORRECTOS -->
-    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&components=applepay&currency=EUR&intent=capture">
+    <!-- PayPal SDK for Apple Pay -->
+    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&components=buttons,applepay&currency=EUR&intent=capture">
     </script>
     
     <style>
@@ -105,17 +105,6 @@
             width: 100%;
             border-radius: 12px;
             min-height: 50px;
-            background: #f5f5f5;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #636e72;
-            font-size: 0.9rem;
-        }
-
-        #applepay-button .placeholder {
-            color: #b2bec3;
-            font-size: 0.85rem;
         }
 
         .paypal-btn-wrapper { margin-top: 10px; }
@@ -193,19 +182,13 @@
         .divider::before { margin-right: 15px; }
         .divider::after { margin-left: 15px; }
 
-        /* Debug info - mostrar solo si hay error */
-        #debug-info {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 15px;
-            font-size: 0.85rem;
-            color: #856404;
+        #applepay-placeholder {
+            text-align: center;
+            padding: 10px;
+            color: #b2bec3;
+            font-size: 0.9rem;
             display: none;
         }
-
-        #debug-info.visible { display: block; }
 
         @media (max-width: 600px) {
             .checkout-container { padding: 24px; }
@@ -255,9 +238,8 @@
                 
                 <div class="payment-buttons">
                     <!-- APPLE PAY BUTTON -->
-                    <div id="applepay-button">
-                        <span class="placeholder">⌛ Checking Apple Pay...</span>
-                    </div>
+                    <div id="applepay-button"></div>
+                    <div id="applepay-placeholder">🍎 Apple Pay not available on this device</div>
 
                     <div class="divider">or pay with PayPal</div>
 
@@ -273,9 +255,6 @@
                     <div class="spinner"></div>
                     <p style="color: #636e72;">Processing your payment...</p>
                 </div>
-
-                <!-- Debug info -->
-                <div id="debug-info"></div>
             </div>
         </form>
 
@@ -300,20 +279,6 @@
         console.log('=== APPLE PAY DEBUG ===');
         console.log('Product:', productName);
         console.log('Client ID:', clientId);
-
-        // ============================================
-        // FUNCIONES DE DEBUG
-        // ============================================
-        function showDebug(message, type) {
-            var debug = document.getElementById('debug-info');
-            debug.textContent = message;
-            debug.className = 'visible';
-            console.log('[DEBUG]', message);
-        }
-
-        function hideDebug() {
-            document.getElementById('debug-info').className = '';
-        }
 
         // ============================================
         // GET CUSTOMER DATA
@@ -408,67 +373,38 @@
         }
 
         // ============================================
-        // INIT APPLE PAY - CON DEBUG EXTENSO
+        // INIT APPLE PAY - FORMA CORRECTA
         // ============================================
         function initApplePay() {
-            var applePayButton = document.getElementById('applepay-button');
-            var placeholder = applePayButton.querySelector('.placeholder');
-            
             console.log('=== CHECKING APPLE PAY ===');
-            console.log('1. Checking if paypal is defined...');
             
             // 1. Check if PayPal SDK is loaded
             if (typeof paypal === 'undefined') {
                 console.log('❌ PayPal SDK not loaded!');
-                showDebug('❌ PayPal SDK not loaded. Check your internet connection and client ID.');
-                placeholder.textContent = '❌ PayPal SDK Error';
+                document.getElementById('applepay-button').style.display = 'none';
+                document.getElementById('applepay-placeholder').style.display = 'block';
                 return;
             }
             console.log('✅ PayPal SDK loaded');
             
-            // 2. Check if Apple Pay component is available
-            console.log('2. Checking if Apple Pay component is available...');
-            if (typeof paypal.Applepay === 'undefined') {
-                console.log('❌ Apple Pay component not available in SDK');
-                showDebug('❌ Apple Pay component not available. Make sure "components=applepay" is in the SDK URL.');
-                placeholder.textContent = '❌ Apple Pay not supported';
+            // 2. Check if Apple Pay is available
+            if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) {
+                console.log('❌ Apple Pay not available on this device');
+                document.getElementById('applepay-button').style.display = 'none';
+                document.getElementById('applepay-placeholder').style.display = 'block';
                 return;
             }
-            console.log('✅ Apple Pay component available');
+            console.log('✅ Apple Pay is available!');
             
-            // 3. Check if Apple Pay is available on the device
-            console.log('3. Checking if Apple Pay is available on device...');
-            if (typeof window.ApplePaySession === 'undefined') {
-                console.log('❌ ApplePaySession not available (not Safari or old version)');
-                showDebug('❌ Apple Pay not available. Use Safari on iPhone, iPad, or Mac.');
-                placeholder.textContent = '❌ Apple Pay not available';
-                return;
-            }
-            console.log('✅ ApplePaySession available');
-            
-            // 4. Check if Apple Pay can make payments
-            console.log('4. Checking if Apple Pay can make payments...');
-            if (!ApplePaySession.canMakePayments()) {
-                console.log('❌ Apple Pay canMakePayments() returned false');
-                showDebug('❌ Apple Pay not configured on this device. Add a card to Apple Wallet.');
-                placeholder.textContent = '❌ Apple Pay not configured';
-                return;
-            }
-            console.log('✅ Apple Pay can make payments!');
-            
-            // 5. Render the button
-            console.log('5. Rendering Apple Pay button...');
-            hideDebug();
-            
-            // Remove placeholder text
-            placeholder.textContent = '';
-            
+            // 3. Render Apple Pay button using paypal.Buttons
             try {
-                paypal.Applepay({
+                paypal.Buttons({
                     style: {
-                        type: 'pay',
+                        layout: 'horizontal',
                         color: 'black',
-                        language: 'en'
+                        label: 'applepay',
+                        height: 50,
+                        shape: 'rect'
                     },
                     
                     createOrder: function() {
@@ -493,8 +429,8 @@
                 
             } catch (error) {
                 console.error('❌ Error rendering Apple Pay button:', error);
-                showDebug('❌ Error rendering Apple Pay button: ' + error.message);
-                placeholder.textContent = '❌ Error loading Apple Pay';
+                document.getElementById('applepay-button').style.display = 'none';
+                document.getElementById('applepay-placeholder').style.display = 'block';
             }
         }
 
@@ -504,7 +440,7 @@
         function startApp() {
             console.log('=== PAGE LOADED ===');
             // Wait a bit for SDK to fully load
-            setTimeout(initApplePay, 1500);
+            setTimeout(initApplePay, 2000);
         }
 
         if (document.readyState === 'complete') {

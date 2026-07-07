@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout - Mecha Toys</title>
     <link rel="stylesheet" href="/styles.css">
+    
+    <!-- PAYPAL SDK - Cargar el SDK de PayPal -->
+    <script 
+        src="https://www.paypal.com/sdk/js?client-id=BAAWZKcrT0oNZQvjebVNxzIPmz4qvEDIlP19-ZRoC6tz-9sx3WKXuyT-DdsuG4c8w_R7Cdk88tp5ybH_G0&components=hosted-buttons&disable-funding=venmo&currency=EUR">
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -174,64 +180,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
-        }
-
-        .btn-paypal-container form {
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
-        .btn-paypal-container .pp-NCN392GYEKDK2 {
-            text-align: center;
-            border: none;
-            border-radius: 0.25rem;
-            min-width: 11.625rem;
-            padding: 0 2rem;
-            height: 2.625rem;
-            font-weight: bold;
-            background-color: #FFD140;
-            color: #000000;
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            font-size: 1rem;
-            line-height: 1.25rem;
-            cursor: pointer;
+        #paypal-container-NCN392GYEKDK2 {
             width: 100%;
             max-width: 400px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-paypal-container .pp-NCN392GYEKDK2:hover {
-            background-color: #f5c800;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
-        }
-
-        .btn-paypal-container .paypal-badges {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .btn-paypal-container .paypal-badges img {
-            height: 20px;
-        }
-
-        .btn-paypal-container .paypal-badges .paypal-credit {
-            font-size: 0.75rem;
-            color: #636e72;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .btn-paypal-container .paypal-badges .paypal-credit img {
-            height: 0.875rem;
-            vertical-align: middle;
         }
 
         .security-badges {
@@ -270,6 +224,20 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Loading overlay para el botón */
+        .paypal-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #636e72;
+            font-size: 0.95rem;
+        }
+
+        .paypal-loading .spinner {
+            margin-right: 10px;
+        }
+
         @media (max-width: 768px) {
             .checkout-container {
                 padding: 30px 20px;
@@ -305,10 +273,8 @@
             .order-summary .summary-row.total {
                 font-size: 1rem;
             }
-            .btn-paypal-container .pp-NCN392GYEKDK2 {
-                font-size: 0.95rem;
-                padding: 0 1.5rem;
-                height: 2.4rem;
+            #paypal-container-NCN392GYEKDK2 {
+                max-width: 100%;
             }
         }
     </style>
@@ -342,7 +308,7 @@
             <p><small>Pay with your PayPal account or credit/debit card.</small></p>
         </div>
 
-        <!-- CUSTOMER FORM + PAYPAL -->
+        <!-- FORMULARIO DEL CLIENTE -->
         <form id="order-form" action="/checkout/{{ product.id }}" method="POST">
             <input type="hidden" name="product_id" value="{{ product.id }}">
             
@@ -366,43 +332,13 @@
                 <textarea id="address" name="address" required placeholder="Street, number, city, postal code, country"></textarea>
             </div>
 
-            <!-- PAYPAL BUTTON -->
+            <!-- ⚠️ BOTÓN DE PAYPAL HOSTED BUTTON - NO MODIFICAR ⚠️ -->
             <div class="btn-paypal-container">
-                <div>
-                    <style>
-                        .pp-NCN392GYEKDK2 {
-                            text-align: center;
-                            border: none;
-                            border-radius: 0.25rem;
-                            min-width: 11.625rem;
-                            padding: 0 2rem;
-                            height: 2.625rem;
-                            font-weight: bold;
-                            background-color: #FFD140;
-                            color: #000000;
-                            font-family: "Helvetica Neue", Arial, sans-serif;
-                            font-size: 1rem;
-                            line-height: 1.25rem;
-                            cursor: pointer;
-                            width: 100%;
-                            max-width: 400px;
-                            transition: all 0.3s ease;
-                        }
-                        .pp-NCN392GYEKDK2:hover {
-                            background-color: #f5c800;
-                            transform: translateY(-2px);
-                            box-shadow: 0 4px 15px rgba(255, 209, 64, 0.4);
-                        }
-                    </style>
-                    <form action="https://www.paypal.com/ncp/payment/NCN392GYEKDK2" method="post" target="_blank" style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;width:100%;">
-                        <input class="pp-NCN392GYEKDK2" type="submit" value="Buy Now with PayPal" />
-                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;">
-                            <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" style="height:20px;" />
-                            <section style="font-size: 0.75rem; color: #636e72; display:flex;align-items:center;gap:4px;">
-                                Powered by <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" style="height:0.875rem;vertical-align:middle;"/>
-                            </section>
-                        </div>
-                    </form>
+                <!-- Contenedor donde se renderizará el botón de PayPal -->
+                <div id="paypal-container-NCN392GYEKDK2">
+                    <div class="paypal-loading">
+                        <span class="spinner"></span> Loading PayPal...
+                    </div>
                 </div>
             </div>
         </form>
@@ -416,9 +352,9 @@
     </div>
 
     <script>
-        // When form is submitted, save data to localStorage as backup
+        // Guardar datos del cliente antes de ir a PayPal
         document.getElementById('order-form').addEventListener('submit', function(e) {
-            // Save customer data to localStorage
+            // Guardar en localStorage como respaldo
             const customerData = {
                 name: document.getElementById('name').value,
                 email: document.getElementById('email').value,
@@ -427,18 +363,9 @@
                 product_id: document.querySelector('input[name="product_id"]').value
             };
             localStorage.setItem('pending_order', JSON.stringify(customerData));
-            
-            // Show loading state on PayPal button
-            const submitBtn = document.querySelector('.pp-NCN392GYEKDK2');
-            if (submitBtn) {
-                submitBtn.value = '⏳ Processing...';
-                submitBtn.disabled = true;
-            }
-            
-            // Form submits normally
         });
 
-        // Restore saved data if user returns after PayPal
+        // Restaurar datos guardados si el usuario vuelve
         document.addEventListener('DOMContentLoaded', function() {
             const savedData = localStorage.getItem('pending_order');
             if (savedData) {
@@ -449,10 +376,45 @@
                     if (data.phone) document.getElementById('phone').value = data.phone;
                     if (data.address) document.getElementById('address').value = data.address;
                 } catch(e) {
-                    // Ignore errors
+                    // Ignorar errores
                 }
             }
         });
+
+        // ⚠️ RENDERIZAR EL BOTÓN DE PAYPAL ⚠️
+        // Este código es el que te dio PayPal - NO MODIFICAR
+        // Se ejecuta después de cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar que el SDK de PayPal está cargado
+            if (typeof paypal !== 'undefined') {
+                try {
+                    paypal.HostedButtons({
+                        hostedButtonId: "NCN392GYEKDK2",
+                    }).render("#paypal-container-NCN392GYEKDK2");
+                } catch(e) {
+                    console.error('Error al renderizar PayPal:', e);
+                    document.getElementById('paypal-container-NCN392GYEKDK2').innerHTML = 
+                        '<p style="color:#e17055;">Error loading PayPal. Please try again.</p>';
+                }
+            } else {
+                // Si el SDK no está cargado, mostrar mensaje
+                document.getElementById('paypal-container-NCN392GYEKDK2').innerHTML = 
+                    '<p style="color:#e17055;">PayPal SDK not loaded. Please refresh the page.</p>';
+            }
+        });
+    </script>
+
+    <!-- ⚠️ CÓDIGO DE PAYPAL PARA RENDERIZAR EL BOTÓN ⚠️ -->
+    <!-- Este script también puede ir aquí si prefieres -->
+    <script>
+        // Backup: Si el script anterior no funcionó, este intenta renderizar
+        // El código de PayPal dice que se ejecute después de cargar el SDK
+        // Pero lo ponemos aquí como respaldo
+        if (typeof paypal !== 'undefined') {
+            paypal.HostedButtons({
+                hostedButtonId: "NCN392GYEKDK2",
+            }).render("#paypal-container-NCN392GYEKDK2");
+        }
     </script>
 </body>
 </html>

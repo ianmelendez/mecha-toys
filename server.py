@@ -10,7 +10,7 @@ import requests
 
 # ===== IMPORTAR SENDGRID CORRECTAMENTE =====
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import Mail, SandBoxMode
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -61,7 +61,7 @@ def serve_images(filename):
 # ============================================================
 
 def send_email_sendgrid(to_email, subject, body):
-    """Envía email usando SendGrid"""
+    """Envía email usando SendGrid con sandbox desactivado"""
     if not SENDGRID_API_KEY:
         print("❌ ERROR: SENDGRID_API_KEY no configurada")
         return False
@@ -77,10 +77,8 @@ def send_email_sendgrid(to_email, subject, body):
             html_content=body.replace('\n', '<br>')
         )
         
-        # === DESACTIVAR SANDBOX (FORMA CORRECTA) ===
-        # En lugar de set_sandbox_mode, usamos el objeto sandbox_mode
-        from sendgrid.helpers.mail import SandBoxMode
-        message.sandbox_mode = SandBoxMode(False)  # ← AÑADE ESTA LÍNEA
+        # === DESACTIVAR SANDBOX ===
+        message.sandbox_mode = SandBoxMode(False)  
         
         # Enviar
         sg = SendGridAPIClient(SENDGRID_API_KEY)
@@ -92,6 +90,7 @@ def send_email_sendgrid(to_email, subject, body):
             return True
         else:
             print(f"❌ Error: {response.status_code}")
+            print(f"📊 Response: {response.body}")
             return False
             
     except Exception as e:

@@ -63,13 +63,13 @@ def serve_images(filename):
 def send_email_sendgrid(to_email, subject, body):
     """Envía email usando SendGrid"""
     if not SENDGRID_API_KEY:
-        print("❌ ERROR: SENDGRID_API_KEY no configurada en variables de entorno")
+        print("❌ ERROR: SENDGRID_API_KEY no configurada")
         return False
         
     try:
         print(f"📤 Enviando email a {to_email} via SendGrid...")
         
-        # Crear el mensaje con el formato correcto de SendGrid
+        # Crear el mensaje
         message = Mail(
             from_email=YOUR_EMAIL,
             to_emails=to_email,
@@ -77,26 +77,25 @@ def send_email_sendgrid(to_email, subject, body):
             html_content=body.replace('\n', '<br>')
         )
         
-        # Crear el cliente de SendGrid con tu API Key
-        message.set_sandbox_mode(False) 
-
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        # === DESACTIVAR SANDBOX (FORMA CORRECTA) ===
+        # En lugar de set_sandbox_mode, usamos el objeto sandbox_mode
+        from sendgrid.helpers.mail import SandBoxMode
+        message.sandbox_mode = SandBoxMode(False)  # ← AÑADE ESTA LÍNEA
         
-        # Enviar el email
+        # Enviar
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
         response = sg.send(message)
         
-        # Verificar si se envió correctamente
         if response.status_code in [200, 201, 202]:
-            print(f"✅ Email enviado a {to_email} (SendGrid)")
-            print(f"📊 Status Code: {response.status_code}")
+            print(f"✅ Email enviado a {to_email}")
+            print(f"📊 Status: {response.status_code}")
             return True
         else:
-            print(f"❌ Error SendGrid: {response.status_code}")
-            print(f"📊 Response: {response.body}")
+            print(f"❌ Error: {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"❌ Error enviando email: {e}")
+        print(f"❌ Error: {e}")
         return False
 
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):

@@ -5,12 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Checkout - Mecha Toys</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -23,7 +20,7 @@
         }
 
         .checkout-container {
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             background: white;
             border-radius: 24px;
@@ -33,32 +30,13 @@
         }
 
         @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #1a1a2e;
-            margin-bottom: 6px;
-        }
-
-        .header p {
-            color: #636e72;
-            font-size: 1rem;
-        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2rem; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+        .header p { color: #636e72; font-size: 1rem; }
 
         .product-summary {
             background: #f8f9fa;
@@ -68,42 +46,13 @@
             border: 1px solid #e9ecef;
         }
 
-        .product-summary .label {
-            font-size: 0.85rem;
-            color: #636e72;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .product-summary .label { font-size: 0.85rem; color: #636e72; font-weight: 600; text-transform: uppercase; }
+        .product-summary .name { font-size: 1.2rem; font-weight: 700; color: #1a1a2e; margin: 4px 0; }
+        .product-summary .price { font-size: 1.8rem; font-weight: 800; color: #e17055; }
 
-        .product-summary .name {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin: 4px 0;
-        }
-
-        .product-summary .price {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #e17055;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #1a1a2e;
-            margin-bottom: 6px;
-        }
-
-        .form-group label .required {
-            color: #e17055;
-        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.9rem; color: #1a1a2e; margin-bottom: 6px; }
+        .form-group label .required { color: #e17055; }
 
         .form-group input,
         .form-group textarea {
@@ -121,25 +70,36 @@
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #6c5ce7;
-            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
+            border-color: #0070ba;
+            box-shadow: 0 0 0 4px rgba(0, 112, 186, 0.1);
         }
 
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .payment-section {
+            margin-top: 25px;
+            border-top: 2px solid #e9ecef;
+            padding-top: 25px;
         }
 
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+        .payment-section .label {
+            font-size: 0.85rem;
+            color: #636e72;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 15px;
+            text-align: center;
         }
 
-        .btn-submit {
+        .paypal-btn-wrapper { margin-top: 10px; }
+
+        .paypal-btn-wrapper .btn-paypal {
             width: 100%;
-            padding: 18px;
-            background: linear-gradient(135deg, #0070ba, #003087);
+            padding: 16px;
+            background: #0070ba;
             color: white;
             border: none;
             border-radius: 12px;
@@ -148,22 +108,47 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 20px rgba(0, 112, 186, 0.3);
-            margin-top: 10px;
         }
 
-        .btn-submit:hover {
+        .paypal-btn-wrapper .btn-paypal:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 30px rgba(0, 112, 186, 0.4);
         }
 
-        .btn-submit:active {
-            transform: translateY(0);
-        }
-
-        .btn-submit:disabled {
+        .paypal-btn-wrapper .btn-paypal:disabled {
             opacity: 0.7;
             cursor: not-allowed;
             transform: none;
+        }
+
+        .paypal-note {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #636e72;
+        }
+
+        .paypal-note .card-icons {
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0070ba;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .trust-badges {
@@ -174,51 +159,15 @@
             flex-wrap: wrap;
         }
 
-        .trust-badges span {
-            font-size: 0.85rem;
-            color: #636e72;
-            font-weight: 500;
-        }
-
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 16px;
-            color: #636e72;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.2s ease;
-        }
-
-        .back-link:hover {
-            color: #1a1a2e;
-        }
-
-        .payment-icons {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin: 16px 0 8px;
-            font-size: 1.8rem;
-        }
+        .trust-badges span { font-size: 0.85rem; color: #636e72; font-weight: 500; }
+        .back-link { display: block; text-align: center; margin-top: 16px; color: #636e72; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: #1a1a2e; }
 
         @media (max-width: 600px) {
-            .checkout-container {
-                padding: 24px;
-            }
-
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 0;
-            }
-
-            .header h1 {
-                font-size: 1.6rem;
-            }
-
-            .product-summary .price {
-                font-size: 1.5rem;
-            }
+            .checkout-container { padding: 24px; }
+            .form-row { grid-template-columns: 1fr; gap: 0; }
+            .header h1 { font-size: 1.6rem; }
+            .product-summary .price { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -235,37 +184,46 @@
             <div class="price">€{{ "%.2f"|format(product.price) }}</div>
         </div>
 
-        <form action="/checkout/{{ product.id }}" method="POST" id="checkout-form">
+        <form id="checkout-form" method="POST" action="/checkout/{{ product.id }}">
             <div class="form-group">
                 <label for="name">Full Name <span class="required">*</span></label>
-                <input type="text" id="name" name="name" placeholder="John Doe" required />
+                <input type="text" id="name" name="name" placeholder="" required />
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="email">Email Address <span class="required">*</span></label>
-                    <input type="email" id="email" name="email" placeholder="john@example.com" required />
+                    <label for="email">Email <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" placeholder="" required />
                 </div>
                 <div class="form-group">
-                    <label for="phone">Phone Number</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+1234567890" />
+                    <label for="phone">Phone</label>
+                    <input type="tel" id="phone" name="phone" placeholder="" />
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="address">Shipping Address <span class="required">*</span></label>
-                <textarea id="address" name="address" placeholder="Street, City, Postal Code, Country" required></textarea>
+                <textarea id="address" name="address" placeholder="" required></textarea>
             </div>
 
-            <div class="payment-icons">
-                <span>💳</span>
-                <span>🅿️</span>
-                <span>🔒</span>
-            </div>
+            <div class="payment-section">
+                <span class="label">💳 Payment Method</span>
+                
+                <div class="paypal-btn-wrapper">
+                    <button type="submit" class="btn-paypal" id="paypal-btn">
+                        💳 Pay with Credit Card / PayPal
+                    </button>
+                    <div class="paypal-note">
+                        <span class="card-icons">💳 💳 💳</span><br>
+                        🔒 No PayPal account needed • Pay with any credit/debit card
+                    </div>
+                </div>
 
-            <button type="submit" class="btn-submit" id="submit-btn">
-                💳 Proceed to PayPal
-            </button>
+                <div class="loading" id="loading-indicator">
+                    <div class="spinner"></div>
+                    <p style="color: #636e72;">Processing your payment...</p>
+                </div>
+            </div>
         </form>
 
         <div class="trust-badges">
@@ -278,11 +236,25 @@
     </div>
 
     <script>
-        document.getElementById('checkout-form').addEventListener('submit', function(e) {
-            const btn = document.getElementById('submit-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Redirecting to PayPal...';
-        });
+        var form = document.getElementById('checkout-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                var btn = document.getElementById('paypal-btn');
+                btn.disabled = true;
+                btn.textContent = '⏳ Processing...';
+            });
+        }
+
+        var inputs = document.querySelectorAll('#checkout-form input, #checkout-form textarea');
+        for (var i = 0; i < inputs.length; i++) {
+            inputs[i].addEventListener('blur', function() {
+                if (this.hasAttribute('required') && !this.value.trim()) {
+                    this.style.borderColor = '#e17055';
+                } else {
+                    this.style.borderColor = '#e9ecef';
+                }
+            });
+        }
     </script>
 </body>
 </html>

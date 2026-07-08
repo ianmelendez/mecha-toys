@@ -136,7 +136,7 @@ PRODUCTS = {
     "8poses": {
         "id": "8poses",
         "name": "8 Poses Toy Set",
-        "price": 0.99,
+        "price": 0.99, # Real PRICE
         "original_price": 49.99,
         "aliexpress_link": "https://nl.aliexpress.com/item/1005012606314092.html"
     },

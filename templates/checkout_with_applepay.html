@@ -6,10 +6,6 @@
     <title>Checkout - Mecha Toys</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
     
-    <!-- PayPal SDK (solo para procesamiento, sin botones de Apple/Google Pay) -->
-    <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&currency=EUR">
-    </script>
-    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -98,14 +94,6 @@
             text-align: center;
         }
 
-        .payment-buttons { display: flex; flex-direction: column; gap: 12px; }
-
-        /* ===== APPLE PAY Y GOOGLE PAY OCULTOS ===== */
-        #applepay-container,
-        #googlepay-container {
-            display: none !important;
-        }
-
         .paypal-btn-wrapper { margin-top: 10px; }
 
         .paypal-btn-wrapper .btn-paypal {
@@ -175,31 +163,6 @@
         .back-link { display: block; text-align: center; margin-top: 16px; color: #636e72; text-decoration: none; font-size: 0.9rem; }
         .back-link:hover { color: #1a1a2e; }
 
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 15px 0;
-            color: #b2bec3;
-            font-size: 0.85rem;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .divider::before { margin-right: 15px; }
-        .divider::after { margin-left: 15px; }
-
-        .payment-message {
-            text-align: center;
-            color: #b2bec3;
-            font-size: 0.9rem;
-            padding: 10px;
-        }
-
         @media (max-width: 600px) {
             .checkout-container { padding: 24px; }
             .form-row { grid-template-columns: 1fr; gap: 0; }
@@ -246,16 +209,13 @@
             <div class="payment-section">
                 <span class="label">💳 Payment Method</span>
                 
-                <div class="payment-buttons">
-                    <!-- PAYPAL STANDARD (acepta tarjetas de crédito/débito) -->
-                    <div class="paypal-btn-wrapper">
-                        <button type="submit" class="btn-paypal" id="paypal-btn">
-                            💳 Pay with Credit Card / PayPal
-                        </button>
-                        <div class="paypal-note">
-                            <span class="card-icons">💳 💳 💳</span><br>
-                            🔒 No PayPal account needed • Pay with any credit/debit card
-                        </div>
+                <div class="paypal-btn-wrapper">
+                    <button type="submit" class="btn-paypal" id="paypal-btn">
+                        💳 Pay with Credit Card / PayPal
+                    </button>
+                    <div class="paypal-note">
+                        <span class="card-icons">💳 💳 💳</span><br>
+                        🔒 No PayPal account needed • Pay with any credit/debit card
                     </div>
                 </div>
 
@@ -276,45 +236,6 @@
     </div>
 
     <script>
-        // ============================================
-        // VARIABLES
-        // ============================================
-        var productId = "{{ product.id }}";
-        var productName = "{{ product.name }}";
-        var productPrice = parseFloat("{{ product.price }}");
-        var clientId = "{{ client_id }}";
-
-        console.log('=== CHECKOUT LOADED ===');
-        console.log('Product:', productName, '€' + productPrice);
-
-        // ============================================
-        // GET CUSTOMER DATA
-        // ============================================
-        function getCustomerData() {
-            var name = document.getElementById('name').value.trim();
-            var email = document.getElementById('email').value.trim();
-            var phone = document.getElementById('phone').value.trim();
-            var address = document.getElementById('address').value.trim();
-            
-            if (!name || !email || !address) {
-                alert('Please fill in all required fields.');
-                return null;
-            }
-            
-            return { name: name, email: email, phone: phone, address: address };
-        }
-
-        function showLoading() {
-            document.getElementById('loading-indicator').classList.add('active');
-        }
-
-        function hideLoading() {
-            document.getElementById('loading-indicator').classList.remove('active');
-        }
-
-        // ============================================
-        // FORM VALIDATION
-        // ============================================
         var form = document.getElementById('checkout-form');
         if (form) {
             form.addEventListener('submit', function(e) {

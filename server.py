@@ -7,7 +7,6 @@ from datetime import datetime
 import secrets
 import os
 import uuid
-import paypalrestsdk
 import requests
 import base64
 
@@ -27,116 +26,12 @@ PAYPAL_EMAIL = "mecchachameleonstore@gmail.com"
 PAYPAL_SANDBOX = False
 PAYPAL_URL = "https://www.paypal.com/cgi-bin/webscr"
 
-# ===== PAYPAL API CONFIGURATION =====
-PAYPAL_CLIENT_ID = "AUiBFA6AJT68zsLBSuLGJNGZEmKuBkLH7jKvqeWeMAoRyPz8M4zl5t9hvq_b1FNzOsAuyIcAqZTY14sQ"
-PAYPAL_CLIENT_SECRET = "EDQ2PE-NJO4IQoivFo9_EiAiKm-LH9B5CKWAxnwAadambd5KbxaVsY9Gh3_6axdlJbDtOF84p2fqBJa4"
-PAYPAL_MODE = "live"
-
-# ===== PAYPAL SDK CONFIG (APPLE PAY) =====
-paypalrestsdk.configure({
-    "mode": PAYPAL_MODE,
-    "client_id": PAYPAL_CLIENT_ID,
-    "client_secret": PAYPAL_CLIENT_SECRET
-})
-
-# ===== PAYPAL REST API CONFIG (GOOGLE PAY) =====
-if PAYPAL_MODE == "sandbox":
-    PAYPAL_API_URL = "https://api-m.sandbox.paypal.com"
-else:
-    PAYPAL_API_URL = "https://api-m.paypal.com"
-
-# ===== GET PAYPAL ACCESS TOKEN =====
-def get_paypal_access_token():
-    """Get PayPal OAuth access token for REST API"""
-    try:
-        auth = base64.b64encode(f"{PAYPAL_CLIENT_ID}:{PAYPAL_CLIENT_SECRET}".encode()).decode()
-        
-        response = requests.post(
-            f"{PAYPAL_API_URL}/v1/oauth2/token",
-            headers={
-                "Authorization": f"Basic {auth}",
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            data="grant_type=client_credentials"
-        )
-        
-        if response.status_code == 200:
-            return response.json()["access_token"]
-        else:
-            print(f"❌ Error getting PayPal token: {response.text}")
-            return None
-    except Exception as e:
-        print(f"❌ Exception getting token: {e}")
-        return None
-
-# ===== REST API FUNCTIONS FOR GOOGLE PAY =====
-def create_paypal_order_rest(amount, description):
-    """Create a PayPal order using REST API for Google Pay"""
-    access_token = get_paypal_access_token()
-    if not access_token:
-        return None
-    
-    order_data = {
-        "intent": "CAPTURE",
-        "purchase_units": [{
-            "reference_id": f"GP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            "description": description,
-            "amount": {
-                "currency_code": "EUR",
-                "value": str(amount)
-            },
-            "payee": {
-                "email_address": PAYPAL_EMAIL
-            }
-        }],
-        "application_context": {
-            "return_url": "https://mecha-toys.onrender.com/payment-success",
-            "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
-            "user_action": "PAY_NOW"
-        }
-    }
-    
-    response = requests.post(
-        f"{PAYPAL_API_URL}/v2/checkout/orders",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        },
-        json=order_data
-    )
-    
-    if response.status_code == 201:
-        return response.json()
-    else:
-        print(f"❌ Error creating order: {response.text}")
-        return None
-
-def capture_paypal_order_rest(order_id):
-    """Capture a PayPal order using REST API for Google Pay"""
-    access_token = get_paypal_access_token()
-    if not access_token:
-        return None
-    
-    response = requests.post(
-        f"{PAYPAL_API_URL}/v2/checkout/orders/{order_id}/capture",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-    )
-    
-    if response.status_code == 201:
-        return response.json()
-    else:
-        print(f"❌ Error capturing order: {response.text}")
-        return None
-
 # ===== PRODUCTS =====
 PRODUCTS = {
     "8poses": {
         "id": "8poses",
         "name": "8 Poses Toy Set",
-        "price": 0.20, # Real PRICE
+        "price": 34.99,
         "original_price": 49.99,
         "aliexpress_link": "https://nl.aliexpress.com/item/1005012606314092.html"
     },
@@ -157,15 +52,6 @@ def serve_css():
 @app.route('/images/<path:filename>')
 def serve_images(filename):
     return send_from_directory('images', filename)
-
-# ===== APPLE PAY DOMAIN VERIFICATION =====
-@app.route('/.well-known/apple-developer-merchantid-domain-association')
-def serve_apple_pay():
-    try:
-        return send_from_directory('.', 'apple-developer-merchantid-domain-association')
-    except Exception as e:
-        print(f"Error serving Apple Pay verification: {e}")
-        return "File not found", 404
 
 # ===== SEND EMAIL FUNCTION =====
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
@@ -247,6 +133,102 @@ def send_email(to_email, subject, body):
         return False
 
 # ============================================================
+# ===== PAYPAL IPN (Instant Payment Notification) =====
+# ============================================================
+@app.route('/paypal-ipn', methods=['POST'])
+def paypal_ipn():
+    """Recibe notificaciones de PayPal cuando un pago se completa"""
+    try:
+        # Reenvía la notificación a PayPal para verificar
+        verification = requests.post(
+            PAYPAL_URL,
+            data={'cmd': '_notify-validate'} | request.form.to_dict()
+        )
+        
+        if verification.text == 'VERIFIED':
+            print("✅ IPN: PayPal verification successful")
+            
+            # Datos del pago
+            txn_id = request.form.get('txn_id')
+            payment_status = request.form.get('payment_status')
+            custom = request.form.get('custom')  # Datos del cliente codificados
+            payer_email = request.form.get('payer_email')
+            payment_gross = request.form.get('mc_gross')
+            
+            print(f"📊 IPN Data: txn_id={txn_id}, status={payment_status}, amount={payment_gross}")
+            
+            if payment_status == 'Completed':
+                # Decodificar datos del cliente
+                try:
+                    customer_data = json.loads(custom) if custom else {}
+                    print(f"👤 Customer data: {customer_data}")
+                except json.JSONDecodeError:
+                    print(f"❌ Error decoding custom data: {custom}")
+                    customer_data = {}
+                
+                product_id = customer_data.get('product_id')
+                product = PRODUCTS.get(product_id) if product_id else None
+                
+                if product:
+                    order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    
+                    # Guardar en orders.json
+                    order_data = {
+                        'order_id': order_id,
+                        'product': product['name'],
+                        'product_id': product['id'],
+                        'customer_name': customer_data.get('name', 'Unknown'),
+                        'customer_email': customer_data.get('email', payer_email or 'Unknown'),
+                        'customer_phone': customer_data.get('phone', ''),
+                        'customer_address': customer_data.get('address', 'No address provided'),
+                        'aliexpress_link': product['aliexpress_link'],
+                        'amount': float(payment_gross or product['price']),
+                        'timestamp': datetime.now().isoformat(),
+                        'status': 'paid',
+                        'payment_method': 'paypal_ipn',
+                        'paypal_txn_id': txn_id,
+                        'payer_email': payer_email
+                    }
+                    
+                    # Guardar en orders.json
+                    try:
+                        with open('orders.json', 'r') as f:
+                            orders = json.load(f)
+                    except (FileNotFoundError, json.JSONDecodeError):
+                        orders = []
+                    
+                    orders.append(order_data)
+                    with open('orders.json', 'w') as f:
+                        json.dump(orders, f, indent=2)
+                    
+                    # ENVIAR EMAILS
+                    send_order_email(
+                        customer_data.get('name', 'Unknown'),
+                        customer_data.get('email', payer_email or 'Unknown'),
+                        customer_data.get('address', 'No address provided'),
+                        product,
+                        customer_data.get('phone', ''),
+                        order_id,
+                        txn_id
+                    )
+                    
+                    print(f"✅ IPN: Order {order_id} processed successfully!")
+                    return 'OK', 200
+                else:
+                    print(f"❌ IPN: Product not found for ID: {product_id}")
+                    return 'Product not found', 404
+            else:
+                print(f"⚠️ IPN: Payment status not completed: {payment_status}")
+                return 'Payment not completed', 200
+        else:
+            print(f"❌ IPN verification failed: {verification.text}")
+            return 'Invalid', 400
+            
+    except Exception as e:
+        print(f"❌ IPN Error: {e}")
+        return 'Error', 500
+
+# ============================================================
 # ===== ROUTES =====
 # ============================================================
 
@@ -265,7 +247,7 @@ def checkout(product_id):
         return "Product not found", 404
     return render_template('checkout_with_applepay.html', 
                          product=product,
-                         client_id=PAYPAL_CLIENT_ID)
+                         client_id="")  # Ya no necesitamos client_id
 
 @app.route('/checkout/<product_id>', methods=['POST'])
 def process_checkout(product_id):
@@ -299,7 +281,20 @@ def paypal_redirect(product_id):
     
     customer_data = session.get('customer_data', {})
     
-    return_url = f"https://mecha-toys.onrender.com/place-order?product_id={product_id}&name={customer_data.get('name')}&email={customer_data.get('email')}&address={customer_data.get('address')}&phone={customer_data.get('phone')}"
+    # CODIFICAR DATOS DEL CLIENTE PARA ENVIARLOS A PAYPAL
+    custom_data = json.dumps({
+        'product_id': product_id,
+        'name': customer_data.get('name'),
+        'email': customer_data.get('email'),
+        'address': customer_data.get('address'),
+        'phone': customer_data.get('phone')
+    })
+    
+    # NOTIFY_URL: donde PayPal enviará la confirmación IPN
+    notify_url = "https://mecha-toys.onrender.com/paypal-ipn"
+    
+    return_url = f"https://mecha-toys.onrender.com/payment-success"
+    cancel_url = "https://mecha-toys.onrender.com/payment-cancel"
     
     paypal_form = f"""
     <!DOCTYPE html>
@@ -381,8 +376,12 @@ def paypal_redirect(product_id):
                 <input type="hidden" name="tax_rate" value="0.00">
                 <input type="hidden" name="shipping" value="0.00">
                 <input type="hidden" name="return" value="{return_url}">
-                <input type="hidden" name="cancel_return" value="https://mecha-toys.onrender.com/">
+                <input type="hidden" name="cancel_return" value="{cancel_url}">
                 <input type="hidden" name="rm" value="2">
+                <!-- IPN: PayPal notificará a esta URL -->
+                <input type="hidden" name="notify_url" value="{notify_url}">
+                <!-- Datos del cliente codificados -->
+                <input type="hidden" name="custom" value='{custom_data}'>
             </form>
             
             <button onclick="document.getElementById('paypal-form').submit();" class="btn">💳 Go to PayPal</button>
@@ -401,318 +400,12 @@ def paypal_redirect(product_id):
     return paypal_form
 
 # ============================================================
-# ===== APPLE PAY ROUTES =====
-# ============================================================
-
-@app.route('/create-apple-pay-order', methods=['POST'])
-def create_apple_pay_order():
-    try:
-        data = request.json
-        product_id = data.get('product_id')
-        customer_name = data.get('customer_name')
-        customer_email = data.get('customer_email')
-        customer_phone = data.get('customer_phone', '')
-        customer_address = data.get('customer_address')
-        
-        if not all([product_id, customer_name, customer_email, customer_address]):
-            return jsonify({'error': 'Missing required fields'}), 400
-        
-        product = PRODUCTS.get(product_id)
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        session['customer_data'] = {
-            'name': customer_name,
-            'email': customer_email,
-            'phone': customer_phone,
-            'address': customer_address,
-            'product_id': product_id
-        }
-        
-        order = paypalrestsdk.Order({
-            "intent": "CAPTURE",
-            "purchase_units": [{
-                "reference_id": f"AP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "description": product['name'],
-                "amount": {
-                    "currency_code": "EUR",
-                    "value": str(product['price'])
-                }
-            }],
-            "application_context": {
-                "return_url": "https://mecha-toys.onrender.com/payment-success",
-                "cancel_url": "https://mecha-toys.onrender.com/payment-cancel",
-                "user_action": "PAY_NOW"
-            }
-        })
-        
-        if order.create():
-            return jsonify({
-                'order_id': order.id,
-                'status': 'created'
-            })
-        else:
-            print(f"Order creation error: {order.error}")
-            return jsonify({'error': order.error}), 400
-            
-    except Exception as e:
-        print(f"Error creating order: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/capture-apple-pay-order', methods=['POST'])
-def capture_apple_pay_order():
-    try:
-        data = request.json
-        order_id = data.get('order_id')
-        
-        if not order_id:
-            return jsonify({'error': 'Order ID required'}), 400
-        
-        order = paypalrestsdk.Order.find(order_id)
-        
-        if order.capture():
-            transaction_id = order.purchase_units[0].payments.captures[0].id
-            
-            customer_data = session.get('customer_data', {})
-            product_id = customer_data.get('product_id')
-            product = PRODUCTS.get(product_id)
-            
-            if product:
-                order_id_internal = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                
-                order_data = {
-                    'order_id': order_id_internal,
-                    'product': product['name'],
-                    'product_id': product['id'],
-                    'customer_name': customer_data.get('name'),
-                    'customer_email': customer_data.get('email'),
-                    'customer_phone': customer_data.get('phone', ''),
-                    'customer_address': customer_data.get('address'),
-                    'aliexpress_link': product['aliexpress_link'],
-                    'amount': product['price'],
-                    'timestamp': datetime.now().isoformat(),
-                    'status': 'paid',
-                    'payment_method': 'apple_pay',
-                    'paypal_transaction_id': transaction_id,
-                    'paypal_order_id': order_id
-                }
-                
-                try:
-                    with open('orders.json', 'r') as f:
-                        orders = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    orders = []
-                
-                orders.append(order_data)
-                with open('orders.json', 'w') as f:
-                    json.dump(orders, f, indent=2)
-                
-                send_order_email(
-                    customer_data.get('name'),
-                    customer_data.get('email'),
-                    customer_data.get('address'),
-                    product,
-                    customer_data.get('phone'),
-                    order_id_internal,
-                    transaction_id
-                )
-            
-            session.pop('customer_data', None)
-            
-            return jsonify({
-                'success': True,
-                'transaction_id': transaction_id
-            })
-        else:
-            print(f"Capture error: {order.error}")
-            return jsonify({'error': 'Failed to capture payment'}), 400
-            
-    except Exception as e:
-        print(f"Error capturing order: {e}")
-        return jsonify({'error': str(e)}), 500
-
-# ============================================================
-# ===== GOOGLE PAY ROUTES =====
-# ============================================================
-
-@app.route('/create-google-pay-order', methods=['POST'])
-def create_google_pay_order():
-    try:
-        data = request.json
-        product_id = data.get('product_id')
-        customer_name = data.get('customer_name')
-        customer_email = data.get('customer_email')
-        customer_phone = data.get('customer_phone', '')
-        customer_address = data.get('customer_address')
-        
-        if not all([product_id, customer_name, customer_email, customer_address]):
-            return jsonify({'error': 'Missing required fields'}), 400
-        
-        product = PRODUCTS.get(product_id)
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        session['customer_data'] = {
-            'name': customer_name,
-            'email': customer_email,
-            'phone': customer_phone,
-            'address': customer_address,
-            'product_id': product_id
-        }
-        
-        order = create_paypal_order_rest(product['price'], product['name'])
-        
-        if order and 'id' in order:
-            return jsonify({
-                'order_id': order['id'],
-                'status': 'created'
-            })
-        else:
-            return jsonify({'error': 'Failed to create order'}), 400
-            
-    except Exception as e:
-        print(f"Error creating Google Pay order: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/capture-google-pay-order', methods=['POST'])
-def capture_google_pay_order():
-    try:
-        data = request.json
-        order_id = data.get('order_id')
-        
-        if not order_id:
-            return jsonify({'error': 'Order ID required'}), 400
-        
-        capture_result = capture_paypal_order_rest(order_id)
-        
-        if capture_result and 'status' in capture_result and capture_result['status'] == 'COMPLETED':
-            transaction_id = capture_result['purchase_units'][0]['payments']['captures'][0]['id']
-            
-            customer_data = session.get('customer_data', {})
-            product_id = customer_data.get('product_id')
-            product = PRODUCTS.get(product_id)
-            
-            if product:
-                order_id_internal = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                
-                order_data = {
-                    'order_id': order_id_internal,
-                    'product': product['name'],
-                    'product_id': product['id'],
-                    'customer_name': customer_data.get('name'),
-                    'customer_email': customer_data.get('email'),
-                    'customer_phone': customer_data.get('phone', ''),
-                    'customer_address': customer_data.get('address'),
-                    'aliexpress_link': product['aliexpress_link'],
-                    'amount': product['price'],
-                    'timestamp': datetime.now().isoformat(),
-                    'status': 'paid',
-                    'payment_method': 'google_pay',
-                    'paypal_transaction_id': transaction_id,
-                    'paypal_order_id': order_id
-                }
-                
-                try:
-                    with open('orders.json', 'r') as f:
-                        orders = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    orders = []
-                
-                orders.append(order_data)
-                with open('orders.json', 'w') as f:
-                    json.dump(orders, f, indent=2)
-                
-                send_order_email(
-                    customer_data.get('name'),
-                    customer_data.get('email'),
-                    customer_data.get('address'),
-                    product,
-                    customer_data.get('phone'),
-                    order_id_internal,
-                    transaction_id
-                )
-            
-            session.pop('customer_data', None)
-            
-            return jsonify({
-                'success': True,
-                'transaction_id': transaction_id
-            })
-        else:
-            return jsonify({'error': 'Failed to capture payment'}), 400
-            
-    except Exception as e:
-        print(f"Error capturing Google Pay order: {e}")
-        return jsonify({'error': str(e)}), 500
-
-# ============================================================
 # ===== ORDER PROCESSING ROUTES =====
 # ============================================================
 
-@app.route('/place-order')
-def place_order():
-    product_id = request.args.get('product_id')
-    customer_name = request.args.get('name')
-    customer_email = request.args.get('email')
-    customer_phone = request.args.get('phone')
-    customer_address = request.args.get('address')
-    
-    payment_status = request.args.get('payment_status')
-    txn_id = request.args.get('txn_id')
-    
-    if not all([product_id, customer_name, customer_email, customer_address]):
-        return "Missing customer data", 400
-    
-    product = PRODUCTS.get(product_id)
-    if not product:
-        return "Product not found", 404
-    
-    order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    
-    order_data = {
-        'order_id': order_id,
-        'product': product['name'],
-        'product_id': product['id'],
-        'customer_name': customer_name,
-        'customer_email': customer_email,
-        'customer_phone': customer_phone,
-        'customer_address': customer_address,
-        'aliexpress_link': product['aliexpress_link'],
-        'amount': product['price'],
-        'timestamp': datetime.now().isoformat(),
-        'status': 'paid' if payment_status == 'Completed' else 'pending',
-        'payment_method': 'paypal_standard',
-        'paypal_txn_id': txn_id,
-        'paypal_status': payment_status
-    }
-    
-    try:
-        with open('orders.json', 'r') as f:
-            orders = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        orders = []
-    
-    orders.append(order_data)
-    with open('orders.json', 'w') as f:
-        json.dump(orders, f, indent=2)
-    
-    send_order_email(
-        customer_name,
-        customer_email,
-        customer_address,
-        product,
-        customer_phone,
-        order_id,
-        txn_id
-    )
-    
-    session.pop('customer_data', None)
-    
-    return render_template('success.html', order=order_data)
-
 @app.route('/payment-success')
 def payment_success():
-    return redirect('/orders')
+    return render_template('success.html')
 
 @app.route('/payment-cancel')
 def payment_cancel():
@@ -801,7 +494,6 @@ def view_orders():
                 <tr>
                     <th>Order ID</th>
                     <th>Product</th>
-                    <th>Method</th>
                     <th>Customer</th>
                     <th>Total</th>
                     <th>Status</th>
@@ -812,13 +504,10 @@ def view_orders():
             for order in reversed(orders):
                 status_color = "status-paid" if order.get('status') == 'paid' else ""
                 status_text = "✅ PAID" if order.get('status') == 'paid' else "⏳ PENDING"
-                method = order.get('payment_method', 'paypal_standard')
-                method_icon = "🍎" if method == "apple_pay" else "🤖" if method == "google_pay" else "💳"
                 html += f"""
                 <tr>
                     <td><strong>{order.get('order_id', 'N/A')}</strong></td>
                     <td>{order.get('product', 'N/A')}</td>
-                    <td>{method_icon} {method.replace('_', ' ').title()}</td>
                     <td>{order.get('customer_name', 'N/A')}</td>
                     <td><strong>€{order.get('amount', 0)}</strong></td>
                     <td class="{status_color}">{status_text}</td>

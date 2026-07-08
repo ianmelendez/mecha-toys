@@ -6,200 +6,73 @@
     <title>Payment Successful - Mecha Toys</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100vh;
             padding: 20px;
         }
-
-        .success-container {
-            max-width: 550px;
-            width: 100%;
+        .container {
             background: white;
+            padding: 50px;
             border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-            padding: 50px 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
             text-align: center;
-            animation: popIn 0.6s ease;
+            max-width: 500px;
+            width: 100%;
         }
-
-        @keyframes popIn {
-            0% {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .icon {
-            font-size: 4rem;
-            margin-bottom: 16px;
-        }
-
-        h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #00b894;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: #636e72;
-            font-size: 1.05rem;
-            margin-bottom: 24px;
-        }
-
-        .order-details {
-            background: #f8f9fa;
-            border-radius: 16px;
-            padding: 20px;
-            text-align: left;
-            margin: 20px 0;
-            border: 1px solid #e9ecef;
-        }
-
-        .order-details .row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .order-details .row:last-child {
-            border-bottom: none;
-        }
-
-        .order-details .label {
-            color: #636e72;
-            font-weight: 500;
-        }
-
-        .order-details .value {
-            font-weight: 600;
-            color: #1a1a2e;
-        }
-
+        .icon { font-size: 4rem; margin-bottom: 20px; }
+        h1 { color: #00b894; font-size: 2rem; margin-bottom: 10px; }
+        p { color: #636e72; line-height: 1.6; margin-bottom: 10px; }
         .btn {
             display: inline-block;
+            margin-top: 20px;
             padding: 14px 40px;
             background: #0070ba;
             color: white;
             text-decoration: none;
             border-radius: 12px;
-            font-weight: 600;
+            font-weight: 700;
             transition: all 0.3s ease;
-            margin-top: 10px;
-            box-shadow: 0 4px 20px rgba(0, 112, 186, 0.25);
+            box-shadow: 0 4px 20px rgba(0, 112, 186, 0.3);
         }
-
         .btn:hover {
             background: #003087;
             transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(0, 112, 186, 0.35);
+            box-shadow: 0 8px 30px rgba(0, 112, 186, 0.4);
         }
-
-        .btn-secondary {
-            background: #f0f2f5;
-            color: #1a1a2e;
-            box-shadow: none;
-            margin-left: 10px;
-        }
-
-        .btn-secondary:hover {
-            background: #e9ecef;
-            box-shadow: none;
-        }
-
-        .next-steps {
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
             margin: 20px 0;
-            color: #636e72;
-            font-size: 0.95rem;
-            line-height: 1.6;
+            text-align: left;
         }
-
-        .next-steps strong {
-            color: #1a1a2e;
-        }
-
-        @media (max-width: 600px) {
-            .success-container {
-                padding: 30px 20px;
-            }
-
-            h1 {
-                font-size: 1.6rem;
-            }
-
-            .btn {
-                display: block;
-                width: 100%;
-                margin: 8px 0;
-            }
-
-            .btn-secondary {
-                margin-left: 0;
-            }
-        }
+        .order-info p { font-size: 0.9rem; margin: 4px 0; }
+        .order-info strong { color: #1a1a2e; }
     </style>
 </head>
 <body>
-    <div class="success-container">
+    <div class="container">
         <div class="icon">✅</div>
         <h1>Payment Successful!</h1>
-        <p class="subtitle">Thank you for your order, {{ order.customer_name }}!</p>
-
-        <div class="order-details">
-            <div class="row">
-                <span class="label">Order ID</span>
-                <span class="value">{{ order.order_id }}</span>
-            </div>
-            <div class="row">
-                <span class="label">Product</span>
-                <span class="value">{{ order.product }}</span>
-            </div>
-            <div class="row">
-                <span class="label">Total</span>
-                <span class="value">€{{ "%.2f"|format(order.amount) }}</span>
-            </div>
-            <div class="row">
-                <span class="label">Status</span>
-                <span class="value" style="color: #00b894;">✅ Paid</span>
-            </div>
-            <div class="row">
-                <span class="label">Shipping Address</span>
-                <span class="value" style="font-size: 0.9rem;">{{ order.customer_address }}</span>
-            </div>
+        <p>Thank you for your order! We have received your payment.</p>
+        
+        <div class="order-info">
+            <p><strong>📧 Order Confirmation:</strong> We've sent a confirmation email to your inbox.</p>
+            <p><strong>📦 Shipping:</strong> You'll receive a tracking number within 24 hours.</p>
+            <p><strong>⏱️ Delivery:</strong> 7-15 business days.</p>
         </div>
-
-        <div class="next-steps">
-            <strong>📧 What happens next?</strong><br />
-            • We will process your order within <strong>24 hours</strong><br />
-            • You will receive a <strong>confirmation email</strong> shortly<br />
-            • Shipping takes <strong>7-15 business days</strong><br />
-            • We'll send you a <strong>tracking number</strong> when shipped
-        </div>
-
-        <div>
-            <a href="/" class="btn">🏠 Back to Store</a>
-            <a href="/orders" class="btn btn-secondary">📦 View Orders</a>
-        </div>
-
-        <p style="margin-top: 20px; font-size: 0.85rem; color: #b2bec3;">
-            Questions? Contact us at mechachameleonstore@gmail.com
+        
+        <p style="font-size: 0.9rem; color: #b2bec3;">
+            ✉️ Check your email for order details.
         </p>
+        
+        <a href="/" class="btn">← Back to Store</a>
     </div>
 </body>
 </html>

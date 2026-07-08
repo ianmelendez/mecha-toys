@@ -7,6 +7,8 @@ from datetime import datetime
 import secrets
 import os
 import requests
+import threading
+import time
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -15,7 +17,9 @@ app.secret_key = secrets.token_hex(16)
 
 # ===== EMAIL CONFIGURATION =====
 YOUR_EMAIL = "mecchachameleonstore@gmail.com"
-YOUR_EMAIL_PASSWORD = "Malapak15."
+# ⚠️ IMPORTANTE: Usa una CONTRASEÑA DE APLICACIÓN de Gmail, no tu contraseña normal
+# Ve a: https://myaccount.google.com/apppasswords
+YOUR_EMAIL_PASSWORD = "Malapak15."  # ← CAMBIA ESTO por una contraseña de aplicación
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
@@ -51,96 +55,117 @@ def serve_css():
 def serve_images(filename):
     return send_from_directory('images', filename)
 
-# ===== SEND EMAIL FUNCTION =====
-def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
-    print(f"📧 ENVIANDO EMAIL A: {customer_email} y {YOUR_EMAIL}")
+# ============================================================
+# ===== FUNCIONES DE EMAIL (ASÍNCRONAS) =====
+# ============================================================
+
+def send_email_async(to_email, subject, body):
+    """Envía email en un hilo separado para no bloquear el worker"""
+    def _send():
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"📤 [Intento {attempt+1}/{max_retries}] Enviando email a {to_email}...")
+                
+                msg = MIMEMultipart()
+                msg['From'] = YOUR_EMAIL
+                msg['To'] = to_email
+                msg['Subject'] = subject
+                msg.attach(MIMEText(body, 'plain'))
+                
+                # Conectar con timeout
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
+                server.starttls()
+                server.login(YOUR_EMAIL, YOUR_EMAIL_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                
+                print(f"✅ Email enviado a {to_email}")
+                return True
+                
+            except Exception as e:
+                print(f"❌ Intento {attempt+1} falló para {to_email}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(3)  # Esperar antes de reintentar
+                else:
+                    print(f"❌ Todos los intentos fallaron para {to_email}")
     
-    you_subject = f"🛒 NEW ORDER - {product['name']}"
+    # Iniciar el hilo
+    thread = threading.Thread(target=_send)
+    thread.daemon = True
+    thread.start()
+    return True
+
+def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
+    """Envía emails al vendedor y al cliente"""
+    print(f"📧 ENVIANDO EMAILS PARA PEDIDO: {order_id}")
+    print(f"📧 Cliente: {customer_email}, Vendedor: {YOUR_EMAIL}")
+    
+    # === EMAIL AL VENDEDOR ===
+    you_subject = f"🛒 NUEVO PEDIDO - {product['name']}"
     you_body = f"""
-🎉 NEW ORDER RECEIVED!
+🎉 NUEVO PEDIDO RECIBIDO!
 
-Order ID: {order_id or 'N/A'}
-Product: {product['name']}
-Price: €{product['price']}
-Payment Method: PayPal
-Transaction ID: {txn_id or 'N/A'}
+ID del Pedido: {order_id or 'N/A'}
+Producto: {product['name']}
+Precio: €{product['price']}
+Método de Pago: PayPal
+ID de Transacción: {txn_id or 'N/A'}
 
-CUSTOMER DETAILS:
-Name: {customer_name}
+DATOS DEL CLIENTE:
+Nombre: {customer_name}
 Email: {customer_email}
-Phone: {phone or 'Not provided'}
-Address: {customer_address}
+Teléfono: {phone or 'No proporcionado'}
+Dirección: {customer_address}
 
 ---
-Order time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Fecha del pedido: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-⚡ ACTION REQUIRED: 
-1. PayPal has notified you of the payment
-2. Go to the AliExpress link
-3. Add to cart and complete the purchase
-4. Ship to the customer's address
+⚡ ACCIÓN REQUERIDA: 
+1. PayPal te ha notificado el pago
+2. Ve al enlace de AliExpress
+3. Añade al carrito y completa la compra
+4. Envía al cliente
 
-ALIEXPRESS LINK:
+ENLACE DE ALIEXPRESS:
 {product['aliexpress_link']}
 """
+    send_email_async(YOUR_EMAIL, you_subject, you_body)
     
-    email_result = send_email(YOUR_EMAIL, you_subject, you_body)
-    print(f"📧 Email a vendedor: {'✅ OK' if email_result else '❌ FALLÓ'}")
-    
-    customer_subject = f"✅ Order Confirmation - Mecha Toys"
+    # === EMAIL AL CLIENTE ===
+    customer_subject = f"✅ Confirmación de Pedido - Mecha Toys"
     customer_body = f"""
-Hello {customer_name},
+Hola {customer_name},
 
-Thank you for your order! We have received your payment successfully.
+¡Gracias por tu pedido! Hemos recibido tu pago correctamente.
 
-Order Details:
-• Order ID: {order_id or 'N/A'}
-• Product: {product['name']}
-• Price: €{product['price']}
-• Payment Method: PayPal
+Detalles del Pedido:
+• ID del Pedido: {order_id or 'N/A'}
+• Producto: {product['name']}
+• Precio: €{product['price']}
+• Método de Pago: PayPal
 
-Shipping Address:
+Dirección de Envío:
 {customer_address}
 
-Next Steps:
-1. We will process your order within 24 hours
-2. We will send you a tracking number via email
-3. Shipping takes 7-15 business days
+Próximos Pasos:
+1. Procesaremos tu pedido en 24 horas
+2. Te enviaremos un número de seguimiento por email
+3. El envío tarda 7-15 días hábiles
 
-Questions? Reply to this email.
+¿Preguntas? Responde a este email.
 
-Thank you for choosing Mecha Toys! 🦎
+¡Gracias por elegir Mecha Toys! 🦎
 """
-    
-    email_result = send_email(customer_email, customer_subject, customer_body)
-    print(f"📧 Email a cliente: {'✅ OK' if email_result else '❌ FALLÓ'}")
-
-def send_email(to_email, subject, body):
-    try:
-        print(f"📤 Conectando a SMTP para enviar a {to_email}")
-        msg = MIMEMultipart()
-        msg['From'] = YOUR_EMAIL
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-        
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(YOUR_EMAIL, YOUR_EMAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        print(f"✅ Email sent to {to_email}")
-        return True
-    except Exception as e:
-        print(f"❌ Failed to send email to {to_email}: {e}")
-        return False
+    send_email_async(customer_email, customer_subject, customer_body)
 
 # ============================================================
-# ===== PROCESAR PEDIDO (FUNCIÓN REUTILIZABLE) =====
+# ===== FUNCIÓN PARA PROCESAR PEDIDOS =====
 # ============================================================
+
 def process_order(customer_data, product, txn_id=None):
-    """Procesa un pedido y envía emails"""
-    print(f"📦 PROCESANDO PEDIDO: {customer_data}")
+    """Procesa un pedido y guarda en orders.json"""
+    print(f"📦 PROCESANDO PEDIDO: {customer_data.get('name', 'Unknown')}")
     
     if not product:
         print("❌ Producto no encontrado")
@@ -192,6 +217,7 @@ def process_order(customer_data, product, txn_id=None):
 # ============================================================
 # ===== PAYPAL IPN (Instant Payment Notification) =====
 # ============================================================
+
 @app.route('/paypal-ipn', methods=['POST'])
 def paypal_ipn():
     """Recibe notificaciones de PayPal cuando un pago se completa"""
@@ -230,9 +256,9 @@ def paypal_ipn():
                         print(f"❌ Error decoding custom: {custom}")
                         # Intentar parsear manualmente
                         try:
-                            # Puede que venga con comillas escapadas
                             custom_clean = custom.replace("'", '"')
                             customer_data = json.loads(custom_clean)
+                            print(f"👤 Customer data decoded (clean): {customer_data}")
                         except:
                             print("❌ No se pudo decodificar custom")
                 
@@ -246,6 +272,7 @@ def paypal_ipn():
                         print(f"✅ IPN: Order {order_data['order_id']} processed successfully!")
                         return 'OK', 200
                     else:
+                        print("❌ IPN: Order processing failed")
                         return 'Order processing failed', 500
                 else:
                     print(f"❌ IPN: Product not found: {product_id}")
@@ -264,14 +291,14 @@ def paypal_ipn():
         return 'Error', 500
 
 # ============================================================
-# ===== DEBUG IPN (para ver qué envía PayPal) =====
+# ===== DEBUG IPN =====
 # ============================================================
+
 @app.route('/debug-ipn', methods=['POST'])
 def debug_ipn():
     """Endpoint para depurar IPN - muestra lo que PayPal envía"""
     print("=== 🐛 DEBUG IPN RECEIVED ===")
     print(f"Method: {request.method}")
-    print(f"Headers: {dict(request.headers)}")
     print("Form data:")
     for key, value in request.form.items():
         print(f"  {key}: {value}")
@@ -292,10 +319,6 @@ def debug_ipn():
 @app.route('/')
 def home():
     return render_template('index.html', products=PRODUCTS)
-
-# ============================================================
-# CHECKOUT ROUTES
-# ============================================================
 
 @app.route('/checkout/<product_id>', methods=['GET'])
 def checkout(product_id):
@@ -455,10 +478,6 @@ def paypal_redirect(product_id):
     """
     return paypal_form
 
-# ============================================================
-# ===== ORDER PROCESSING ROUTES =====
-# ============================================================
-
 @app.route('/payment-success', methods=['GET', 'POST'])
 def payment_success():
     """Página de éxito después del pago"""
@@ -480,7 +499,6 @@ def payment_success():
             print(f"✅ Pedido procesado desde payment-success: {order_data['order_id']}")
             session.pop('customer_data', None)
     
-    # Mostrar la página de éxito
     return render_template('success.html')
 
 @app.route('/payment-cancel')

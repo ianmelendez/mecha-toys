@@ -3,4 +3,4 @@ services:
     name: mecha-toys
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn server:app
+    startCommand: gunicorn server:app --timeout 120 --workers 1

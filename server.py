@@ -8,7 +8,7 @@ import secrets
 import os
 import requests
 
-# ===== IMPORTAR SENDGRID CORRECTAMENTE =====
+# ===== IMPORT SENDGRID =====
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, SandBoxMode
 
@@ -21,7 +21,6 @@ app.secret_key = secrets.token_hex(16)
 YOUR_EMAIL = "mecchachameleonstore@gmail.com"
 
 # ===== SENDGRID CONFIGURATION =====
-# Lee la API Key de las variables de entorno (NUNCA la pongas en el código)
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
 
 # ===== PAYPAL STANDARD CONFIGURATION =====
@@ -57,35 +56,34 @@ def serve_images(filename):
     return send_from_directory('images', filename)
 
 # ============================================================
-# ===== FUNCIÓN DE EMAIL CON SENDGRID =====
+# ===== EMAIL FUNCTIONS =====
 # ============================================================
 
 def send_email_sendgrid(to_email, subject, body):
-    """Envía email usando SendGrid con sandbox desactivado"""
+    """Send email using SendGrid with sandbox disabled"""
     if not SENDGRID_API_KEY:
-        print("❌ ERROR: SENDGRID_API_KEY no configurada")
+        print("❌ ERROR: SENDGRID_API_KEY not configured")
         return False
         
     try:
-        print(f"📤 Enviando email a {to_email} via SendGrid...")
+        print(f"📤 Sending email to {to_email} via SendGrid...")
         
-        # Crear el mensaje
         message = Mail(
             from_email=YOUR_EMAIL,
             to_emails=to_email,
             subject=subject,
-            html_content=body.replace('\n', '<br>')
+            html_content=body
         )
         
-        # === DESACTIVAR SANDBOX ===
-        message.sandbox_mode = SandBoxMode(False)  
+        # Disable sandbox mode
+        message.sandbox_mode = SandBoxMode(False)
+        message.reply_to = YOUR_EMAIL
         
-        # Enviar
         sg = SendGridAPIClient(SENDGRID_API_KEY)
         response = sg.send(message)
         
         if response.status_code in [200, 201, 202]:
-            print(f"✅ Email enviado a {to_email}")
+            print(f"✅ Email sent to {to_email}")
             print(f"📊 Status: {response.status_code}")
             return True
         else:
@@ -98,81 +96,135 @@ def send_email_sendgrid(to_email, subject, body):
         return False
 
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
-    """Envía emails al vendedor y al cliente usando SendGrid"""
-    print(f"📧 ENVIANDO EMAILS PARA PEDIDO: {order_id}")
+    """Send emails to seller and customer"""
+    print(f"📧 SENDING EMAILS FOR ORDER: {order_id}")
     
-    # === EMAIL AL VENDEDOR ===
-    you_subject = f"🛒 NUEVO PEDIDO - {product['name']}"
-    you_body = f"""
-    <h2>🎉 NUEVO PEDIDO RECIBIDO!</h2>
-    
-    <p><strong>ID del Pedido:</strong> {order_id or 'N/A'}</p>
-    <p><strong>Producto:</strong> {product['name']}</p>
-    <p><strong>Precio:</strong> €{product['price']}</p>
-    <p><strong>ID de Transacción:</strong> {txn_id or 'N/A'}</p>
-    
-    <h3>DATOS DEL CLIENTE:</h3>
-    <p><strong>Nombre:</strong> {customer_name}</p>
-    <p><strong>Email:</strong> {customer_email}</p>
-    <p><strong>Teléfono:</strong> {phone or 'No proporcionado'}</p>
-    <p><strong>Dirección:</strong> {customer_address}</p>
-    
-    <p><strong>Fecha:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-    
-    <h3>⚡ ACCIÓN REQUERIDA:</h3>
-    <ol>
-        <li>PayPal te ha notificado el pago</li>
-        <li>Ve al enlace de AliExpress</li>
-        <li>Añade al carrito y completa la compra</li>
-        <li>Envía al cliente</li>
-    </ol>
-    
-    <p><strong>ENLACE DE ALIEXPRESS:</strong><br>
-    <a href="{product['aliexpress_link']}">{product['aliexpress_link']}</a></p>
+    # === EMAIL TO SELLER ===
+    seller_subject = f"🛒 NEW ORDER - {product['name']}"
+    seller_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: #0070ba; color: white; padding: 20px; text-align: center; }}
+            .content {{ padding: 20px; }}
+            .footer {{ font-size: 12px; color: #999; text-align: center; padding: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>🎉 NEW ORDER RECEIVED!</h2>
+            </div>
+            <div class="content">
+                <p><strong>Order ID:</strong> {order_id or 'N/A'}</p>
+                <p><strong>Product:</strong> {product['name']}</p>
+                <p><strong>Price:</strong> €{product['price']}</p>
+                <p><strong>Transaction ID:</strong> {txn_id or 'N/A'}</p>
+                <hr>
+                <h3>CUSTOMER DETAILS:</h3>
+                <p><strong>Name:</strong> {customer_name}</p>
+                <p><strong>Email:</strong> {customer_email}</p>
+                <p><strong>Phone:</strong> {phone or 'Not provided'}</p>
+                <p><strong>Address:</strong> {customer_address}</p>
+                <hr>
+                <p><strong>Order Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <hr>
+                <h3>⚡ ACTION REQUIRED:</h3>
+                <ol>
+                    <li>PayPal has notified you of the payment</li>
+                    <li>Go to the AliExpress link below</li>
+                    <li>Add to cart and complete the purchase</li>
+                    <li>Ship to the customer's address</li>
+                </ol>
+                <p><strong>ALIEXPRESS LINK:</strong><br>
+                <a href="{product['aliexpress_link']}">{product['aliexpress_link']}</a></p>
+            </div>
+            <div class="footer">
+                <p>Mecha Toys - This is an automated message</p>
+            </div>
+        </div>
+    </body>
+    </html>
     """
     
-    send_email_sendgrid(YOUR_EMAIL, you_subject, you_body)
+    send_email_sendgrid(YOUR_EMAIL, seller_subject, seller_body)
     
-    # === EMAIL AL CLIENTE ===
-    customer_subject = f"✅ Confirmación de Pedido - Mecha Toys"
+    # === EMAIL TO CUSTOMER ===
+    customer_subject = f"✅ Order Confirmation #{order_id} - Mecha Toys"
     customer_body = f"""
-    <h2>✅ ¡Gracias por tu pedido, {customer_name}!</h2>
-    
-    <p>Hemos recibido tu pago correctamente.</p>
-    
-    <h3>Detalles del Pedido:</h3>
-    <p><strong>ID del Pedido:</strong> {order_id or 'N/A'}</p>
-    <p><strong>Producto:</strong> {product['name']}</p>
-    <p><strong>Precio:</strong> €{product['price']}</p>
-    <p><strong>Método de Pago:</strong> PayPal</p>
-    
-    <h3>Dirección de Envío:</h3>
-    <p>{customer_address}</p>
-    
-    <h3>Próximos Pasos:</h3>
-    <ol>
-        <li>Procesaremos tu pedido en 24 horas</li>
-        <li>Te enviaremos un número de seguimiento por email</li>
-        <li>El envío tarda 7-15 días hábiles</li>
-    </ol>
-    
-    <p>¿Preguntas? Responde a este email.</p>
-    
-    <p>¡Gracias por elegir Mecha Toys! 🦎</p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: #00b894; color: white; padding: 20px; text-align: center; }}
+            .content {{ padding: 20px; }}
+            .spam-warning {{ background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+            .footer {{ font-size: 12px; color: #999; text-align: center; padding: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>✅ Thank you for your order!</h2>
+            </div>
+            <div class="content">
+                <p>Hello {customer_name},</p>
+                <p>Your payment has been confirmed and your order is being processed.</p>
+                
+                <div class="spam-warning">
+                    <p>⚠️ <strong>Important:</strong> If you don't see our emails in your inbox, 
+                    please check your <strong>Spam/Junk</strong> folder and mark them as "Not Spam". 
+                    This ensures you receive future updates about your order.</p>
+                </div>
+                
+                <h3>Order Details:</h3>
+                <p><strong>Order ID:</strong> {order_id or 'N/A'}</p>
+                <p><strong>Product:</strong> {product['name']}</p>
+                <p><strong>Price:</strong> €{product['price']}</p>
+                <p><strong>Payment Method:</strong> PayPal</p>
+                
+                <h3>Shipping Address:</h3>
+                <p>{customer_address}</p>
+                
+                <h3>Next Steps:</h3>
+                <ol>
+                    <li>We will process your order within 24 hours</li>
+                    <li>You will receive a tracking number via email</li>
+                    <li>Shipping takes 7-15 business days</li>
+                </ol>
+                
+                <p>Questions? Reply to this email.</p>
+                <p>Thank you for choosing Mecha Toys! 🦎</p>
+            </div>
+            <div class="footer">
+                <p>Mecha Toys - Your trusted toy store</p>
+                <p><a href="https://mecha-toys.onrender.com">mecha-toys.onrender.com</a></p>
+                <p style="color: #999; font-size: 11px;">This is an automated message. Please do not reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
     """
     
     send_email_sendgrid(customer_email, customer_subject, customer_body)
 
 # ============================================================
-# ===== FUNCIÓN PARA PROCESAR PEDIDOS =====
+# ===== ORDER PROCESSING =====
 # ============================================================
 
 def process_order(customer_data, product, txn_id=None):
-    """Procesa un pedido y guarda en orders.json"""
-    print(f"📦 PROCESANDO PEDIDO: {customer_data.get('name', 'Unknown')}")
+    """Process order and save to orders.json"""
+    print(f"📦 PROCESSING ORDER: {customer_data.get('name', 'Unknown')}")
     
     if not product:
-        print("❌ Producto no encontrado")
+        print("❌ Product not found")
         return None
     
     order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -193,7 +245,7 @@ def process_order(customer_data, product, txn_id=None):
         'paypal_txn_id': txn_id or 'N/A'
     }
     
-    # Guardar en orders.json
+    # Save to orders.json
     try:
         with open('orders.json', 'r') as f:
             orders = json.load(f)
@@ -203,9 +255,9 @@ def process_order(customer_data, product, txn_id=None):
     orders.append(order_data)
     with open('orders.json', 'w') as f:
         json.dump(orders, f, indent=2)
-    print(f"✅ Pedido guardado: {order_id}")
+    print(f"✅ Order saved: {order_id}")
     
-    # ENVIAR EMAILS
+    # Send emails
     send_order_email(
         customer_data.get('name', 'Unknown'),
         customer_data.get('email', 'Unknown'),
@@ -224,7 +276,7 @@ def process_order(customer_data, product, txn_id=None):
 
 @app.route('/paypal-ipn', methods=['POST'])
 def paypal_ipn():
-    print("=== 📨 IPN RECIBIDO ===")
+    print("=== 📨 IPN RECEIVED ===")
     
     try:
         data = request.form.to_dict()
@@ -233,7 +285,7 @@ def paypal_ipn():
         print(f"IPN verification: {response.text}")
         
         if response.text == 'VERIFIED':
-            print("✅ IPN verificado")
+            print("✅ IPN verified")
             
             txn_id = request.form.get('txn_id')
             payment_status = request.form.get('payment_status')
@@ -247,12 +299,12 @@ def paypal_ipn():
                 if product:
                     order_data = process_order(customer_data, product, txn_id)
                     if order_data:
-                        print(f"✅ IPN: Pedido {order_data['order_id']} procesado")
+                        print(f"✅ IPN: Order {order_data['order_id']} processed")
                         return 'OK', 200
             else:
                 print(f"⚠️ Status: {payment_status}")
         else:
-            print(f"❌ IPN no verificado")
+            print(f"❌ IPN not verified")
             
     except Exception as e:
         print(f"❌ IPN Error: {e}")

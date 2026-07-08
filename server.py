@@ -78,6 +78,8 @@ def send_email_sendgrid(to_email, subject, body):
         )
         
         # Crear el cliente de SendGrid con tu API Key
+        message.set_sandbox_mode(False) 
+
         sg = SendGridAPIClient(SENDGRID_API_KEY)
         
         # Enviar el email

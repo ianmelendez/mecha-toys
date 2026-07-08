@@ -53,6 +53,8 @@ def serve_images(filename):
 
 # ===== SEND EMAIL FUNCTION =====
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
+    print(f"📧 ENVIANDO EMAIL A: {customer_email} y {YOUR_EMAIL}")
+    
     you_subject = f"🛒 NEW ORDER - {product['name']}"
     you_body = f"""
 🎉 NEW ORDER RECEIVED!
@@ -82,7 +84,8 @@ ALIEXPRESS LINK:
 {product['aliexpress_link']}
 """
     
-    send_email(YOUR_EMAIL, you_subject, you_body)
+    email_result = send_email(YOUR_EMAIL, you_subject, you_body)
+    print(f"📧 Email a vendedor: {'✅ OK' if email_result else '❌ FALLÓ'}")
     
     customer_subject = f"✅ Order Confirmation - Mecha Toys"
     customer_body = f"""
@@ -109,10 +112,12 @@ Questions? Reply to this email.
 Thank you for choosing Mecha Toys! 🦎
 """
     
-    send_email(customer_email, customer_subject, customer_body)
+    email_result = send_email(customer_email, customer_subject, customer_body)
+    print(f"📧 Email a cliente: {'✅ OK' if email_result else '❌ FALLÓ'}")
 
 def send_email(to_email, subject, body):
     try:
+        print(f"📤 Conectando a SMTP para enviar a {to_email}")
         msg = MIMEMultipart()
         msg['From'] = YOUR_EMAIL
         msg['To'] = to_email
@@ -127,8 +132,62 @@ def send_email(to_email, subject, body):
         print(f"✅ Email sent to {to_email}")
         return True
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"❌ Failed to send email to {to_email}: {e}")
         return False
+
+# ============================================================
+# ===== PROCESAR PEDIDO (FUNCIÓN REUTILIZABLE) =====
+# ============================================================
+def process_order(customer_data, product, txn_id=None):
+    """Procesa un pedido y envía emails"""
+    print(f"📦 PROCESANDO PEDIDO: {customer_data}")
+    
+    if not product:
+        print("❌ Producto no encontrado")
+        return None
+    
+    order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    order_data = {
+        'order_id': order_id,
+        'product': product['name'],
+        'product_id': product['id'],
+        'customer_name': customer_data.get('name', 'Unknown'),
+        'customer_email': customer_data.get('email', 'Unknown'),
+        'customer_phone': customer_data.get('phone', ''),
+        'customer_address': customer_data.get('address', 'No address provided'),
+        'aliexpress_link': product['aliexpress_link'],
+        'amount': product['price'],
+        'timestamp': datetime.now().isoformat(),
+        'status': 'paid',
+        'payment_method': 'paypal',
+        'paypal_txn_id': txn_id or 'N/A'
+    }
+    
+    # Guardar en orders.json
+    try:
+        with open('orders.json', 'r') as f:
+            orders = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        orders = []
+    
+    orders.append(order_data)
+    with open('orders.json', 'w') as f:
+        json.dump(orders, f, indent=2)
+    print(f"✅ Pedido guardado en orders.json: {order_id}")
+    
+    # ENVIAR EMAILS
+    send_order_email(
+        customer_data.get('name', 'Unknown'),
+        customer_data.get('email', 'Unknown'),
+        customer_data.get('address', 'No address provided'),
+        product,
+        customer_data.get('phone', ''),
+        order_id,
+        txn_id
+    )
+    
+    return order_data
 
 # ============================================================
 # ===== PAYPAL IPN (Instant Payment Notification) =====
@@ -136,12 +195,16 @@ def send_email(to_email, subject, body):
 @app.route('/paypal-ipn', methods=['POST'])
 def paypal_ipn():
     """Recibe notificaciones de PayPal cuando un pago se completa"""
+    print("=== 📨 IPN RECIBIDO ===")
+    print(f"Form data: {request.form}")
+    
     try:
         # Verificar que la IPN viene de PayPal
         data = request.form.to_dict()
         data['cmd'] = '_notify-validate'
         
         response = requests.post(PAYPAL_URL, data=data)
+        print(f"IPN verification response: {response.text}")
         
         if response.text == 'VERIFIED':
             print("✅ IPN: PayPal verification successful")
@@ -153,7 +216,8 @@ def paypal_ipn():
             payer_email = request.form.get('payer_email')
             payment_gross = request.form.get('mc_gross')
             
-            print(f"📊 IPN: txn_id={txn_id}, status={payment_status}, amount={payment_gross}")
+            print(f"📊 txn_id={txn_id}, status={payment_status}, amount={payment_gross}")
+            print(f"📊 custom={custom}")
             
             if payment_status == 'Completed':
                 # Decodificar datos del cliente desde 'custom'
@@ -164,54 +228,25 @@ def paypal_ipn():
                         print(f"👤 Customer data decoded: {customer_data}")
                     except:
                         print(f"❌ Error decoding custom: {custom}")
+                        # Intentar parsear manualmente
+                        try:
+                            # Puede que venga con comillas escapadas
+                            custom_clean = custom.replace("'", '"')
+                            customer_data = json.loads(custom_clean)
+                        except:
+                            print("❌ No se pudo decodificar custom")
                 
                 product_id = customer_data.get('product_id')
                 product = PRODUCTS.get(product_id) if product_id else None
                 
                 if product:
-                    order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                    
-                    order_data = {
-                        'order_id': order_id,
-                        'product': product['name'],
-                        'product_id': product['id'],
-                        'customer_name': customer_data.get('name', 'Unknown'),
-                        'customer_email': customer_data.get('email', payer_email or 'Unknown'),
-                        'customer_phone': customer_data.get('phone', ''),
-                        'customer_address': customer_data.get('address', 'No address provided'),
-                        'aliexpress_link': product['aliexpress_link'],
-                        'amount': float(payment_gross or product['price']),
-                        'timestamp': datetime.now().isoformat(),
-                        'status': 'paid',
-                        'payment_method': 'paypal_ipn',
-                        'paypal_txn_id': txn_id,
-                        'payer_email': payer_email
-                    }
-                    
-                    # Guardar en orders.json
-                    try:
-                        with open('orders.json', 'r') as f:
-                            orders = json.load(f)
-                    except (FileNotFoundError, json.JSONDecodeError):
-                        orders = []
-                    
-                    orders.append(order_data)
-                    with open('orders.json', 'w') as f:
-                        json.dump(orders, f, indent=2)
-                    
-                    # ENVIAR EMAILS
-                    send_order_email(
-                        customer_data.get('name', 'Unknown'),
-                        customer_data.get('email', payer_email or 'Unknown'),
-                        customer_data.get('address', 'No address provided'),
-                        product,
-                        customer_data.get('phone', ''),
-                        order_id,
-                        txn_id
-                    )
-                    
-                    print(f"✅ IPN: Order {order_id} processed successfully!")
-                    return 'OK', 200
+                    # PROCESAR PEDIDO
+                    order_data = process_order(customer_data, product, txn_id)
+                    if order_data:
+                        print(f"✅ IPN: Order {order_data['order_id']} processed successfully!")
+                        return 'OK', 200
+                    else:
+                        return 'Order processing failed', 500
                 else:
                     print(f"❌ IPN: Product not found: {product_id}")
                     return 'Product not found', 404
@@ -224,7 +259,31 @@ def paypal_ipn():
             
     except Exception as e:
         print(f"❌ IPN Error: {e}")
+        import traceback
+        traceback.print_exc()
         return 'Error', 500
+
+# ============================================================
+# ===== DEBUG IPN (para ver qué envía PayPal) =====
+# ============================================================
+@app.route('/debug-ipn', methods=['POST'])
+def debug_ipn():
+    """Endpoint para depurar IPN - muestra lo que PayPal envía"""
+    print("=== 🐛 DEBUG IPN RECEIVED ===")
+    print(f"Method: {request.method}")
+    print(f"Headers: {dict(request.headers)}")
+    print("Form data:")
+    for key, value in request.form.items():
+        print(f"  {key}: {value}")
+    print("=== FIN DEBUG IPN ===")
+    
+    # Guardar en archivo de log
+    with open('ipn_debug.log', 'a') as f:
+        f.write(f"\n=== {datetime.now().isoformat()} ===\n")
+        for key, value in request.form.items():
+            f.write(f"{key}: {value}\n")
+    
+    return "OK - Debug received", 200
 
 # ============================================================
 # ===== ROUTES =====
@@ -374,6 +433,7 @@ def paypal_redirect(product_id):
                 <input type="hidden" name="shipping" value="0.00">
                 <input type="hidden" name="return" value="{return_url}">
                 <input type="hidden" name="cancel_return" value="{cancel_url}">
+                <input type="hidden" name="rm" value="2">
                 <!-- IPN: PayPal notificará a esta URL -->
                 <input type="hidden" name="notify_url" value="{notify_url}">
                 <!-- Datos del cliente codificados -->
@@ -399,69 +459,26 @@ def paypal_redirect(product_id):
 # ===== ORDER PROCESSING ROUTES =====
 # ============================================================
 
-@app.route('/payment-success', methods=['GET', 'POST'])  # ← ACEPTA GET Y POST
+@app.route('/payment-success', methods=['GET', 'POST'])
 def payment_success():
     """Página de éxito después del pago"""
-    print("=== PAYMENT SUCCESS CALLED ===")
+    print("=== ✅ PAYMENT SUCCESS CALLED ===")
     print(f"Method: {request.method}")
+    print(f"Args: {request.args}")
     print(f"Form data: {request.form}")
     
-    # Si PayPal envía datos por POST, procesarlos
-    if request.method == 'POST':
-        txn_id = request.form.get('txn_id')
-        payment_status = request.form.get('payment_status')
-        
-        print(f"📊 POST data: txn_id={txn_id}, status={payment_status}")
-        
-        if payment_status == 'Completed':
-            # Intentar obtener datos de la sesión
-            customer_data = session.get('customer_data', {})
-            product_id = customer_data.get('product_id')
-            product = PRODUCTS.get(product_id) if product_id else None
-            
-            if product:
-                order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                
-                # Guardar en orders.json
-                order_data = {
-                    'order_id': order_id,
-                    'product': product['name'],
-                    'product_id': product['id'],
-                    'customer_name': customer_data.get('name', 'Unknown'),
-                    'customer_email': customer_data.get('email', 'Unknown'),
-                    'customer_phone': customer_data.get('phone', ''),
-                    'customer_address': customer_data.get('address', 'No address provided'),
-                    'aliexpress_link': product['aliexpress_link'],
-                    'amount': product['price'],
-                    'timestamp': datetime.now().isoformat(),
-                    'status': 'paid',
-                    'payment_method': 'paypal_return',
-                    'paypal_txn_id': txn_id
-                }
-                
-                try:
-                    with open('orders.json', 'r') as f:
-                        orders = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    orders = []
-                
-                orders.append(order_data)
-                with open('orders.json', 'w') as f:
-                    json.dump(orders, f, indent=2)
-                
-                # ENVIAR EMAILS
-                send_order_email(
-                    customer_data.get('name', 'Unknown'),
-                    customer_data.get('email', 'Unknown'),
-                    customer_data.get('address', 'No address provided'),
-                    product,
-                    customer_data.get('phone', ''),
-                    order_id,
-                    txn_id
-                )
-                
-                session.pop('customer_data', None)
-                print(f"✅ Order {order_id} processed from payment-success POST")
+    # SIEMPRE procesar el pedido si hay datos en la sesión
+    customer_data = session.get('customer_data', {})
+    product_id = customer_data.get('product_id')
+    product = PRODUCTS.get(product_id) if product_id else None
+    
+    if product and customer_data.get('name'):
+        print(f"📦 Procesando pedido desde payment-success para {product['name']}")
+        txn_id = request.args.get('txn_id') or request.form.get('txn_id')
+        order_data = process_order(customer_data, product, txn_id)
+        if order_data:
+            print(f"✅ Pedido procesado desde payment-success: {order_data['order_id']}")
+            session.pop('customer_data', None)
     
     # Mostrar la página de éxito
     return render_template('success.html')

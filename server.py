@@ -56,54 +56,53 @@ def serve_images(filename):
     return send_from_directory('images', filename)
 
 # ============================================================
-# ===== FUNCIONES DE EMAIL (ASÍNCRONAS) =====
+# ===== FUNCIONES DE EMAIL (SIMPLIFICADAS) =====
 # ============================================================
 
-def send_email_async(to_email, subject, body):
-    """Envía email en un hilo separado para no bloquear el worker"""
-    def _send():
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                print(f"📤 [Intento {attempt+1}/{max_retries}] Enviando email a {to_email}...")
-                
-                msg = MIMEMultipart()
-                msg['From'] = YOUR_EMAIL
-                msg['To'] = to_email
-                msg['Subject'] = subject
-                msg.attach(MIMEText(body, 'plain', 'utf-8'))
-                
-                print(f"📤 Conectando a {SMTP_SERVER}:{SMTP_PORT}...")
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
-                server.starttls()
-                print(f"📤 Iniciando sesión como {YOUR_EMAIL}...")
-                server.login(YOUR_EMAIL, YOUR_EMAIL_PASSWORD)
-                print(f"📤 Enviando mensaje...")
-                server.send_message(msg)
-                server.quit()
-                
-                print(f"✅ Email enviado a {to_email}")
-                return True
-                
-            except Exception as e:
-                print(f"❌ Intento {attempt+1} falló para {to_email}: {e}")
-                print(f"❌ Tipo de error: {type(e).__name__}")
-                import traceback
-                traceback.print_exc()
-                
-                if attempt < max_retries - 1:
-                    print(f"⏳ Esperando 3 segundos antes de reintentar...")
-                    time.sleep(3)
-                else:
-                    print(f"❌ Todos los intentos fallaron para {to_email}")
-    
-    thread = threading.Thread(target=_send)
-    thread.daemon = True
-    thread.start()
-    return True
+def send_email_direct(to_email, subject, body):
+    """Envía email directamente sin hilos - más fiable"""
+    try:
+        print(f"📤 Enviando email a {to_email}...")
+        
+        # Crear mensaje
+        msg = MIMEMultipart()
+        msg['From'] = YOUR_EMAIL
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Conectar y enviar
+        print(f"📤 Conectando a {SMTP_SERVER}:{SMTP_PORT}...")
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
+        server.starttls()
+        
+        print(f"📤 Iniciando sesión...")
+        server.login(YOUR_EMAIL, YOUR_EMAIL_PASSWORD)
+        
+        print(f"📤 Enviando mensaje...")
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"✅ Email enviado a {to_email}")
+        return True
+        
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"❌ ERROR DE AUTENTICACIÓN: {e}")
+        print(f"❌ La contraseña de aplicación no es válida o ha expirado")
+        return False
+        
+    except smtplib.SMTPException as e:
+        print(f"❌ ERROR SMTP: {e}")
+        return False
+        
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
-    """Envía emails al vendedor y al cliente"""
+    """Envía emails al vendedor y al cliente - versión síncrona"""
     print(f"📧 ENVIANDO EMAILS PARA PEDIDO: {order_id}")
     print(f"📧 Cliente: {customer_email}, Vendedor: {YOUR_EMAIL}")
     
@@ -136,7 +135,7 @@ Fecha del pedido: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 ENLACE DE ALIEXPRESS:
 {product['aliexpress_link']}
 """
-    send_email_async(YOUR_EMAIL, you_subject, you_body)
+    send_email_direct(YOUR_EMAIL, you_subject, you_body)
     
     # === EMAIL AL CLIENTE ===
     customer_subject = f"✅ Confirmación de Pedido - Mecha Toys"
@@ -163,7 +162,7 @@ Próximos Pasos:
 
 ¡Gracias por elegir Mecha Toys! 🦎
 """
-    send_email_async(customer_email, customer_subject, customer_body)
+    send_email_direct(customer_email, customer_subject, customer_body)
 
 # ============================================================
 # ===== FUNCIÓN PARA PROCESAR PEDIDOS =====

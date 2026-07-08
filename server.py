@@ -71,12 +71,14 @@ def send_email_async(to_email, subject, body):
                 msg['From'] = YOUR_EMAIL
                 msg['To'] = to_email
                 msg['Subject'] = subject
-                msg.attach(MIMEText(body, 'plain'))
+                msg.attach(MIMEText(body, 'plain', 'utf-8'))
                 
-                # Conectar con timeout
+                print(f"📤 Conectando a {SMTP_SERVER}:{SMTP_PORT}...")
                 server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
                 server.starttls()
+                print(f"📤 Iniciando sesión como {YOUR_EMAIL}...")
                 server.login(YOUR_EMAIL, YOUR_EMAIL_PASSWORD)
+                print(f"📤 Enviando mensaje...")
                 server.send_message(msg)
                 server.quit()
                 
@@ -85,12 +87,16 @@ def send_email_async(to_email, subject, body):
                 
             except Exception as e:
                 print(f"❌ Intento {attempt+1} falló para {to_email}: {e}")
+                print(f"❌ Tipo de error: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                
                 if attempt < max_retries - 1:
-                    time.sleep(3)  # Esperar antes de reintentar
+                    print(f"⏳ Esperando 3 segundos antes de reintentar...")
+                    time.sleep(3)
                 else:
                     print(f"❌ Todos los intentos fallaron para {to_email}")
     
-    # Iniciar el hilo
     thread = threading.Thread(target=_send)
     thread.daemon = True
     thread.start()

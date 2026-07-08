@@ -7,8 +7,10 @@ from datetime import datetime
 import secrets
 import os
 import requests
-import threading
-import time
+
+# ===== IMPORTAR SENDGRID CORRECTAMENTE =====
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 app = Flask(__name__, 
             template_folder='templates',
@@ -17,11 +19,10 @@ app.secret_key = secrets.token_hex(16)
 
 # ===== EMAIL CONFIGURATION =====
 YOUR_EMAIL = "mecchachameleonstore@gmail.com"
-# ⚠️ IMPORTANTE: Usa una CONTRASEÑA DE APLICACIÓN de Gmail, no tu contraseña normal
-# Ve a: https://myaccount.google.com/apppasswords
-YOUR_EMAIL_PASSWORD = "bamt qudy ryij pbef"  # 
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+
+# ===== SENDGRID CONFIGURATION =====
+# Lee la API Key de las variables de entorno (NUNCA la pongas en el código)
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
 
 # ===== PAYPAL STANDARD CONFIGURATION =====
 PAYPAL_EMAIL = "mecchachameleonstore@gmail.com"
@@ -56,113 +57,111 @@ def serve_images(filename):
     return send_from_directory('images', filename)
 
 # ============================================================
-# ===== FUNCIONES DE EMAIL (SIMPLIFICADAS) =====
+# ===== FUNCIÓN DE EMAIL CON SENDGRID =====
 # ============================================================
 
-def send_email_direct(to_email, subject, body):
-    """Envía email directamente sin hilos - más fiable"""
+def send_email_sendgrid(to_email, subject, body):
+    """Envía email usando SendGrid"""
+    if not SENDGRID_API_KEY:
+        print("❌ ERROR: SENDGRID_API_KEY no configurada en variables de entorno")
+        return False
+        
     try:
-        print(f"📤 Enviando email a {to_email}...")
+        print(f"📤 Enviando email a {to_email} via SendGrid...")
         
-        # Crear mensaje
-        msg = MIMEMultipart()
-        msg['From'] = YOUR_EMAIL
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        # Crear el mensaje con el formato correcto de SendGrid
+        message = Mail(
+            from_email=YOUR_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            html_content=body.replace('\n', '<br>')
+        )
         
-        # Conectar y enviar
-        print(f"📤 Conectando a {SMTP_SERVER}:{SMTP_PORT}...")
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
-        server.starttls()
+        # Crear el cliente de SendGrid con tu API Key
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
         
-        print(f"📤 Iniciando sesión...")
-        server.login(YOUR_EMAIL, YOUR_EMAIL_PASSWORD)
+        # Enviar el email
+        response = sg.send(message)
         
-        print(f"📤 Enviando mensaje...")
-        server.send_message(msg)
-        server.quit()
-        
-        print(f"✅ Email enviado a {to_email}")
-        return True
-        
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"❌ ERROR DE AUTENTICACIÓN: {e}")
-        print(f"❌ La contraseña de aplicación no es válida o ha expirado")
-        return False
-        
-    except smtplib.SMTPException as e:
-        print(f"❌ ERROR SMTP: {e}")
-        return False
-        
+        # Verificar si se envió correctamente
+        if response.status_code in [200, 201, 202]:
+            print(f"✅ Email enviado a {to_email} (SendGrid)")
+            print(f"📊 Status Code: {response.status_code}")
+            return True
+        else:
+            print(f"❌ Error SendGrid: {response.status_code}")
+            print(f"📊 Response: {response.body}")
+            return False
+            
     except Exception as e:
-        print(f"❌ ERROR: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error enviando email: {e}")
         return False
 
 def send_order_email(customer_name, customer_email, customer_address, product, phone=None, order_id=None, txn_id=None):
-    """Envía emails al vendedor y al cliente - versión síncrona"""
+    """Envía emails al vendedor y al cliente usando SendGrid"""
     print(f"📧 ENVIANDO EMAILS PARA PEDIDO: {order_id}")
-    print(f"📧 Cliente: {customer_email}, Vendedor: {YOUR_EMAIL}")
     
     # === EMAIL AL VENDEDOR ===
     you_subject = f"🛒 NUEVO PEDIDO - {product['name']}"
     you_body = f"""
-🎉 NUEVO PEDIDO RECIBIDO!
-
-ID del Pedido: {order_id or 'N/A'}
-Producto: {product['name']}
-Precio: €{product['price']}
-Método de Pago: PayPal
-ID de Transacción: {txn_id or 'N/A'}
-
-DATOS DEL CLIENTE:
-Nombre: {customer_name}
-Email: {customer_email}
-Teléfono: {phone or 'No proporcionado'}
-Dirección: {customer_address}
-
----
-Fecha del pedido: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-⚡ ACCIÓN REQUERIDA: 
-1. PayPal te ha notificado el pago
-2. Ve al enlace de AliExpress
-3. Añade al carrito y completa la compra
-4. Envía al cliente
-
-ENLACE DE ALIEXPRESS:
-{product['aliexpress_link']}
-"""
-    send_email_direct(YOUR_EMAIL, you_subject, you_body)
+    <h2>🎉 NUEVO PEDIDO RECIBIDO!</h2>
+    
+    <p><strong>ID del Pedido:</strong> {order_id or 'N/A'}</p>
+    <p><strong>Producto:</strong> {product['name']}</p>
+    <p><strong>Precio:</strong> €{product['price']}</p>
+    <p><strong>ID de Transacción:</strong> {txn_id or 'N/A'}</p>
+    
+    <h3>DATOS DEL CLIENTE:</h3>
+    <p><strong>Nombre:</strong> {customer_name}</p>
+    <p><strong>Email:</strong> {customer_email}</p>
+    <p><strong>Teléfono:</strong> {phone or 'No proporcionado'}</p>
+    <p><strong>Dirección:</strong> {customer_address}</p>
+    
+    <p><strong>Fecha:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    
+    <h3>⚡ ACCIÓN REQUERIDA:</h3>
+    <ol>
+        <li>PayPal te ha notificado el pago</li>
+        <li>Ve al enlace de AliExpress</li>
+        <li>Añade al carrito y completa la compra</li>
+        <li>Envía al cliente</li>
+    </ol>
+    
+    <p><strong>ENLACE DE ALIEXPRESS:</strong><br>
+    <a href="{product['aliexpress_link']}">{product['aliexpress_link']}</a></p>
+    """
+    
+    send_email_sendgrid(YOUR_EMAIL, you_subject, you_body)
     
     # === EMAIL AL CLIENTE ===
     customer_subject = f"✅ Confirmación de Pedido - Mecha Toys"
     customer_body = f"""
-Hola {customer_name},
-
-¡Gracias por tu pedido! Hemos recibido tu pago correctamente.
-
-Detalles del Pedido:
-• ID del Pedido: {order_id or 'N/A'}
-• Producto: {product['name']}
-• Precio: €{product['price']}
-• Método de Pago: PayPal
-
-Dirección de Envío:
-{customer_address}
-
-Próximos Pasos:
-1. Procesaremos tu pedido en 24 horas
-2. Te enviaremos un número de seguimiento por email
-3. El envío tarda 7-15 días hábiles
-
-¿Preguntas? Responde a este email.
-
-¡Gracias por elegir Mecha Toys! 🦎
-"""
-    send_email_direct(customer_email, customer_subject, customer_body)
+    <h2>✅ ¡Gracias por tu pedido, {customer_name}!</h2>
+    
+    <p>Hemos recibido tu pago correctamente.</p>
+    
+    <h3>Detalles del Pedido:</h3>
+    <p><strong>ID del Pedido:</strong> {order_id or 'N/A'}</p>
+    <p><strong>Producto:</strong> {product['name']}</p>
+    <p><strong>Precio:</strong> €{product['price']}</p>
+    <p><strong>Método de Pago:</strong> PayPal</p>
+    
+    <h3>Dirección de Envío:</h3>
+    <p>{customer_address}</p>
+    
+    <h3>Próximos Pasos:</h3>
+    <ol>
+        <li>Procesaremos tu pedido en 24 horas</li>
+        <li>Te enviaremos un número de seguimiento por email</li>
+        <li>El envío tarda 7-15 días hábiles</li>
+    </ol>
+    
+    <p>¿Preguntas? Responde a este email.</p>
+    
+    <p>¡Gracias por elegir Mecha Toys! 🦎</p>
+    """
+    
+    send_email_sendgrid(customer_email, customer_subject, customer_body)
 
 # ============================================================
 # ===== FUNCIÓN PARA PROCESAR PEDIDOS =====
@@ -204,7 +203,7 @@ def process_order(customer_data, product, txn_id=None):
     orders.append(order_data)
     with open('orders.json', 'w') as f:
         json.dump(orders, f, indent=2)
-    print(f"✅ Pedido guardado en orders.json: {order_id}")
+    print(f"✅ Pedido guardado: {order_id}")
     
     # ENVIAR EMAILS
     send_order_email(
@@ -220,102 +219,45 @@ def process_order(customer_data, product, txn_id=None):
     return order_data
 
 # ============================================================
-# ===== PAYPAL IPN (Instant Payment Notification) =====
+# ===== PAYPAL IPN =====
 # ============================================================
 
 @app.route('/paypal-ipn', methods=['POST'])
 def paypal_ipn():
-    """Recibe notificaciones de PayPal cuando un pago se completa"""
     print("=== 📨 IPN RECIBIDO ===")
-    print(f"Form data: {request.form}")
     
     try:
-        # Verificar que la IPN viene de PayPal
         data = request.form.to_dict()
         data['cmd'] = '_notify-validate'
-        
         response = requests.post(PAYPAL_URL, data=data)
-        print(f"IPN verification response: {response.text}")
+        print(f"IPN verification: {response.text}")
         
         if response.text == 'VERIFIED':
-            print("✅ IPN: PayPal verification successful")
+            print("✅ IPN verificado")
             
-            # Obtener datos del pago
             txn_id = request.form.get('txn_id')
             payment_status = request.form.get('payment_status')
             custom = request.form.get('custom')
-            payer_email = request.form.get('payer_email')
-            payment_gross = request.form.get('mc_gross')
-            
-            print(f"📊 txn_id={txn_id}, status={payment_status}, amount={payment_gross}")
-            print(f"📊 custom={custom}")
             
             if payment_status == 'Completed':
-                # Decodificar datos del cliente desde 'custom'
-                customer_data = {}
-                if custom:
-                    try:
-                        customer_data = json.loads(custom)
-                        print(f"👤 Customer data decoded: {customer_data}")
-                    except:
-                        print(f"❌ Error decoding custom: {custom}")
-                        # Intentar parsear manualmente
-                        try:
-                            custom_clean = custom.replace("'", '"')
-                            customer_data = json.loads(custom_clean)
-                            print(f"👤 Customer data decoded (clean): {customer_data}")
-                        except:
-                            print("❌ No se pudo decodificar custom")
-                
+                customer_data = json.loads(custom) if custom else {}
                 product_id = customer_data.get('product_id')
-                product = PRODUCTS.get(product_id) if product_id else None
+                product = PRODUCTS.get(product_id)
                 
                 if product:
-                    # PROCESAR PEDIDO
                     order_data = process_order(customer_data, product, txn_id)
                     if order_data:
-                        print(f"✅ IPN: Order {order_data['order_id']} processed successfully!")
+                        print(f"✅ IPN: Pedido {order_data['order_id']} procesado")
                         return 'OK', 200
-                    else:
-                        print("❌ IPN: Order processing failed")
-                        return 'Order processing failed', 500
-                else:
-                    print(f"❌ IPN: Product not found: {product_id}")
-                    return 'Product not found', 404
             else:
-                print(f"⚠️ IPN: Status not completed: {payment_status}")
-                return 'Payment not completed', 200
+                print(f"⚠️ Status: {payment_status}")
         else:
-            print(f"❌ IPN verification failed: {response.text}")
-            return 'Invalid', 400
+            print(f"❌ IPN no verificado")
             
     except Exception as e:
         print(f"❌ IPN Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return 'Error', 500
-
-# ============================================================
-# ===== DEBUG IPN =====
-# ============================================================
-
-@app.route('/debug-ipn', methods=['POST'])
-def debug_ipn():
-    """Endpoint para depurar IPN - muestra lo que PayPal envía"""
-    print("=== 🐛 DEBUG IPN RECEIVED ===")
-    print(f"Method: {request.method}")
-    print("Form data:")
-    for key, value in request.form.items():
-        print(f"  {key}: {value}")
-    print("=== FIN DEBUG IPN ===")
     
-    # Guardar en archivo de log
-    with open('ipn_debug.log', 'a') as f:
-        f.write(f"\n=== {datetime.now().isoformat()} ===\n")
-        for key, value in request.form.items():
-            f.write(f"{key}: {value}\n")
-    
-    return "OK - Debug received", 200
+    return 'OK', 200
 
 # ============================================================
 # ===== ROUTES =====
@@ -330,8 +272,7 @@ def checkout(product_id):
     product = PRODUCTS.get(product_id)
     if not product:
         return "Product not found", 404
-    return render_template('checkout.html', 
-                         product=product)
+    return render_template('checkout.html', product=product)
 
 @app.route('/checkout/<product_id>', methods=['POST'])
 def process_checkout(product_id):
@@ -365,7 +306,6 @@ def paypal_redirect(product_id):
     
     customer_data = session.get('customer_data', {})
     
-    # CODIFICAR DATOS DEL CLIENTE PARA ENVIARLOS A PAYPAL
     custom_data = json.dumps({
         'product_id': product_id,
         'name': customer_data.get('name'),
@@ -374,9 +314,7 @@ def paypal_redirect(product_id):
         'phone': customer_data.get('phone')
     })
     
-    # NOTIFY_URL: donde PayPal enviará la confirmación IPN
     notify_url = "https://mecha-toys.onrender.com/paypal-ipn"
-    
     return_url = "https://mecha-toys.onrender.com/payment-success"
     cancel_url = "https://mecha-toys.onrender.com/payment-cancel"
     
@@ -462,9 +400,7 @@ def paypal_redirect(product_id):
                 <input type="hidden" name="return" value="{return_url}">
                 <input type="hidden" name="cancel_return" value="{cancel_url}">
                 <input type="hidden" name="rm" value="2">
-                <!-- IPN: PayPal notificará a esta URL -->
                 <input type="hidden" name="notify_url" value="{notify_url}">
-                <!-- Datos del cliente codificados -->
                 <input type="hidden" name="custom" value='{custom_data}'>
             </form>
             
@@ -485,23 +421,16 @@ def paypal_redirect(product_id):
 
 @app.route('/payment-success', methods=['GET', 'POST'])
 def payment_success():
-    """Página de éxito después del pago"""
     print("=== ✅ PAYMENT SUCCESS CALLED ===")
-    print(f"Method: {request.method}")
-    print(f"Args: {request.args}")
-    print(f"Form data: {request.form}")
     
-    # SIEMPRE procesar el pedido si hay datos en la sesión
     customer_data = session.get('customer_data', {})
     product_id = customer_data.get('product_id')
     product = PRODUCTS.get(product_id) if product_id else None
     
     if product and customer_data.get('name'):
-        print(f"📦 Procesando pedido desde payment-success para {product['name']}")
         txn_id = request.args.get('txn_id') or request.form.get('txn_id')
         order_data = process_order(customer_data, product, txn_id)
         if order_data:
-            print(f"✅ Pedido procesado desde payment-success: {order_data['order_id']}")
             session.pop('customer_data', None)
     
     return render_template('success.html')

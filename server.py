@@ -19,7 +19,7 @@ app.secret_key = secrets.token_hex(16)
 YOUR_EMAIL = "mecchachameleonstore@gmail.com"
 # ⚠️ IMPORTANTE: Usa una CONTRASEÑA DE APLICACIÓN de Gmail, no tu contraseña normal
 # Ve a: https://myaccount.google.com/apppasswords
-YOUR_EMAIL_PASSWORD = "Malapak15."  # ← CAMBIA ESTO por una contraseña de aplicación
+YOUR_EMAIL_PASSWORD = "vdql jkun blud kyxl"  # ← CAMBIA ESTO por una contraseña de aplicación
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 

@@ -22,12 +22,31 @@
             border-radius: 24px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.1);
             text-align: center;
-            max-width: 500px;
+            max-width: 600px;
             width: 100%;
         }
         .icon { font-size: 4rem; margin-bottom: 20px; }
         h1 { color: #00b894; font-size: 2rem; margin-bottom: 10px; }
-        p { color: #636e72; line-height: 1.6; margin-bottom: 10px; }
+        .subtitle { color: #636e72; font-size: 1.1rem; margin-bottom: 20px; }
+        .spam-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .spam-warning h3 { color: #856404; margin-bottom: 10px; }
+        .spam-warning p { color: #856404; margin: 5px 0; font-size: 0.95rem; }
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .order-info p { font-size: 0.9rem; margin: 4px 0; color: #333; }
+        .order-info strong { color: #1a1a2e; }
         .btn {
             display: inline-block;
             margin-top: 20px;
@@ -45,34 +64,40 @@
             transform: translateY(-3px);
             box-shadow: 0 8px 30px rgba(0, 112, 186, 0.4);
         }
-        .order-info {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: left;
+        .footer { margin-top: 30px; font-size: 0.8rem; color: #b2bec3; }
+        @media (max-width: 600px) {
+            .container { padding: 30px; }
+            h1 { font-size: 1.5rem; }
         }
-        .order-info p { font-size: 0.9rem; margin: 4px 0; }
-        .order-info strong { color: #1a1a2e; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="icon">✅</div>
         <h1>Payment Successful!</h1>
-        <p>Thank you for your order! We have received your payment.</p>
+        <p class="subtitle">Thank you for your order. We have received your payment.</p>
         
-        <div class="order-info">
-            <p><strong>📧 Order Confirmation:</strong> We've sent a confirmation email to your inbox.</p>
-            <p><strong>📦 Shipping:</strong> You'll receive a tracking number within 24 hours.</p>
-            <p><strong>⏱️ Delivery:</strong> 7-15 business days.</p>
+        <!-- ===== AVISO DE SPAM (AQUÍ, EN LA PÁGINA WEB) ===== -->
+        <div class="spam-warning">
+            <h3>📧 Check Your Email</h3>
+            <p>We have sent a confirmation email to your inbox.</p>
+            <p>⚠️ <strong>Important:</strong> If you don't see it, please check your <strong>Spam / Junk</strong> folder and mark it as "Not Spam".</p>
+            <p style="margin-top: 8px; font-size: 0.85rem;">This ensures you receive future updates about your order.</p>
         </div>
         
-        <p style="font-size: 0.9rem; color: #b2bec3;">
-            ✉️ Check your email for order details.
-        </p>
+        <div class="order-info">
+            <p><strong>📦 What's next?</strong></p>
+            <p>• We will process your order within 24 hours</p>
+            <p>• You will receive a tracking number via email</p>
+            <p>• Delivery takes 7-15 business days</p>
+        </div>
         
         <a href="/" class="btn">← Back to Store</a>
+        
+        <div class="footer">
+            <p>Mecha Toys - Your trusted toy store</p>
+            <p style="font-size: 0.7rem;">Need help? Reply to your confirmation email.</p>
+        </div>
     </div>
 </body>
 </html>

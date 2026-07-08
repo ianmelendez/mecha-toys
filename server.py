@@ -129,7 +129,7 @@ def send_order_email(customer_name, customer_email, customer_address, product, p
                 <p><strong>Name:</strong> {customer_name}</p>
                 <p><strong>Email:</strong> {customer_email}</p>
                 <p><strong>Phone:</strong> {phone or 'Not provided'}</p>
-                <p><strong>Address:</strong> {customer_address}</p>
+                <p><strong>Address:</strong><br>{customer_address}</p>
                 <hr>
                 <p><strong>Order Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
                 <hr>
@@ -165,7 +165,6 @@ def send_order_email(customer_name, customer_email, customer_address, product, p
             .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
             .header {{ background: #00b894; color: white; padding: 20px; text-align: center; }}
             .content {{ padding: 20px; }}
-            .spam-warning {{ background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; }}
             .footer {{ font-size: 12px; color: #999; text-align: center; padding: 20px; }}
         </style>
     </head>
@@ -177,12 +176,6 @@ def send_order_email(customer_name, customer_email, customer_address, product, p
             <div class="content">
                 <p>Hello {customer_name},</p>
                 <p>Your payment has been confirmed and your order is being processed.</p>
-                
-                <div class="spam-warning">
-                    <p>⚠️ <strong>Important:</strong> If you don't see our emails in your inbox, 
-                    please check your <strong>Spam/Junk</strong> folder and mark them as "Not Spam". 
-                    This ensures you receive future updates about your order.</p>
-                </div>
                 
                 <h3>Order Details:</h3>
                 <p><strong>Order ID:</strong> {order_id or 'N/A'}</p>
@@ -212,20 +205,31 @@ def send_order_email(customer_name, customer_email, customer_address, product, p
     </body>
     </html>
     """
-    
     send_email_sendgrid(customer_email, customer_subject, customer_body)
 
 # ============================================================
-# ===== ORDER PROCESSING =====
+# ===== ORDER PROCESSING (WITH DUPLICATE CHECK) =====
 # ============================================================
 
 def process_order(customer_data, product, txn_id=None):
-    """Process order and save to orders.json"""
+    """Process order and save to orders.json - Prevents duplicates"""
     print(f"📦 PROCESSING ORDER: {customer_data.get('name', 'Unknown')}")
     
     if not product:
         print("❌ Product not found")
         return None
+    
+    # === CHECK IF ORDER ALREADY EXISTS BY TXN_ID ===
+    if txn_id:
+        try:
+            with open('orders.json', 'r') as f:
+                existing_orders = json.load(f)
+                for order in existing_orders:
+                    if order.get('paypal_txn_id') == txn_id:
+                        print(f"⚠️ Order with txn_id {txn_id} already exists. Skipping duplicate.")
+                        return order
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
     
     order_id = f"MT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
@@ -257,7 +261,7 @@ def process_order(customer_data, product, txn_id=None):
         json.dump(orders, f, indent=2)
     print(f"✅ Order saved: {order_id}")
     
-    # Send emails
+    # Send emails (ONLY ONCE)
     send_order_email(
         customer_data.get('name', 'Unknown'),
         customer_data.get('email', 'Unknown'),
@@ -473,16 +477,36 @@ def paypal_redirect(product_id):
 
 @app.route('/payment-success', methods=['GET', 'POST'])
 def payment_success():
+    """Success page - Only processes if IPN hasn't already"""
     print("=== ✅ PAYMENT SUCCESS CALLED ===")
     
     customer_data = session.get('customer_data', {})
     product_id = customer_data.get('product_id')
     product = PRODUCTS.get(product_id) if product_id else None
+    txn_id = request.args.get('txn_id') or request.form.get('txn_id')
     
     if product and customer_data.get('name'):
-        txn_id = request.args.get('txn_id') or request.form.get('txn_id')
-        order_data = process_order(customer_data, product, txn_id)
-        if order_data:
+        # Check if order was already processed by IPN
+        order_exists = False
+        if txn_id:
+            try:
+                with open('orders.json', 'r') as f:
+                    existing_orders = json.load(f)
+                    for order in existing_orders:
+                        if order.get('paypal_txn_id') == txn_id:
+                            order_exists = True
+                            print(f"⚠️ Order with txn_id {txn_id} already exists (processed by IPN)")
+                            break
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
+        
+        if not order_exists:
+            print(f"📦 Processing order from payment-success (IPN didn't arrive)")
+            order_data = process_order(customer_data, product, txn_id)
+            if order_data:
+                session.pop('customer_data', None)
+        else:
+            print(f"✅ Order already processed by IPN, showing success")
             session.pop('customer_data', None)
     
     return render_template('success.html')
